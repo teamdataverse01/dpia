@@ -1,0 +1,10 @@
+.git
+.env
+vendor
+storage/evidence/*
+storage/logs/*
+tests
+.phpunit.cache
+*.pdf
+prd.md
+docker-compose.yml

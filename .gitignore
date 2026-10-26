@@ -1,0 +1,13 @@
+/vendor/
+.env
+/storage/evidence/*
+!/storage/evidence/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+.phpunit.cache/
+.phpunit.result.cache
+
+# client documents and reference files stay local (not for the repo)
+*.pdf
+prd.md
+dsartypecss.css

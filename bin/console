@@ -1,0 +1,58 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\App;
+use App\Infrastructure\Migrator;
+use App\Support\Config;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$root = dirname(__DIR__);
+$app = new App(Config::load($root . '/.env'), $root);
+$cmd = $argv[1] ?? 'help';
+
+$out = fn (string $s) => fwrite(STDOUT, $s . PHP_EOL);
+
+try {
+    switch ($cmd) {
+        case 'migrate':
+            foreach ((new Migrator($app->db(), $root))->migrate() as $name) {
+                $out("applied {$name}");
+            }
+            $out('migrations up to date');
+            break;
+
+        case 'seed':
+            // Reference data (departments, factor options, scoring_config v1, control library).
+            $out((new Migrator($app->db(), $root))->seedReference() ? 'reference data seeded' : 'reference data already present, skipped');
+            if (in_array('--demo', $argv, true)) {
+                require $root . '/database/seeds/DemoSeeder.php';
+                (new DemoSeeder($app, $out))->run();
+            }
+            break;
+
+        case 'jobs:daily':
+            $stats = $app->jobs()->daily();
+            $out('daily job: ' . json_encode($stats));
+            break;
+
+        case 'snapshot':
+            $out('snapshot rows: ' . $app->jobs()->snapshot());
+            break;
+
+        default:
+            $out("Usage: php bin/console <command>\n");
+            $out('  migrate          apply database/migrations/*.sql in order');
+            $out('  seed [--demo]    load reference data; --demo adds dev users, vendors, DPIAs and templates');
+            $out('  jobs:daily       monitoring transitions, reminders (Mailer) and dashboard snapshot — run from cron');
+            $out('  snapshot         write today\'s risk_snapshots row set only');
+    }
+} catch (Throwable $e) {
+    fwrite(STDERR, get_class($e) . ': ' . $e->getMessage() . PHP_EOL);
+    if ($e instanceof App\Support\ValidationException) {
+        fwrite(STDERR, json_encode($e->fields) . PHP_EOL);
+    }
+    exit(1);
+}
