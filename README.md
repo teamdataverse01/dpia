@@ -36,6 +36,22 @@ php bin/console jobs:daily
 
 It moves decided assessments into monitoring, flags reassessments that are due, sends reminders through `Mailer`, and writes the dashboard snapshot.
 
+## Demo deployment (Railway)
+
+The demo runs on Railway (project `cu-privacy-risk`): an `app` service built from this repo's `Dockerfile` (auto-deploys on push to `main`), a `Postgres` database, and a volume at `/app/storage/evidence`. `docker/start.sh` migrates the database, seeds it, runs the daily job, and then serves the app.
+
+| Variable (app service) | Value |
+|---|---|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+| `AUTH_ADAPTER` | `demo`: sign-in page instead of the portal session |
+| `DEMO_PASSWORD` | the shared demo password (change it in Railway at any time) |
+| `SEED_DEMO` | `1`: load demo data on first start (skipped if data exists) |
+| `APP_BASE_URL` | the public Railway URL |
+
+Demo usernames are `requestor`, `dpo`, `approver`, `reviewer`, `infosec`, `owner`, `vendor`, `admin` and `auditor`, one per role. All use `DEMO_PASSWORD`.
+
+**Reset the demo to its starting state:** set `RESET_DEMO_DATA=1` on the app service, wait for the deploy, then delete the variable. Locally, run `php bin/console demo:reset`. The reset refuses to run unless `AUTH_ADAPTER=demo`.
+
 ## Integrating with the CU portal
 
 Everything CU owns sits behind three interfaces in `src/Contracts`. Swap them in `src/App.php` (the methods marked `ADAPTER`); no business logic changes are needed.
