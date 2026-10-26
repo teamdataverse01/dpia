@@ -33,6 +33,26 @@ try {
             }
             break;
 
+        case 'demo:reset':
+            // Wipes ALL data and evidence, then reloads the demo. Refuses outside the demo deployment.
+            if ($app->config->get('AUTH_ADAPTER') !== 'demo' && !$app->config->isDev()) {
+                throw new RuntimeException('demo:reset only runs when AUTH_ADAPTER=demo (or APP_ENV=dev).');
+            }
+            $app->db()->pdo()->exec('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+            $evidence = rtrim((string) $app->config->get('STORAGE_PATH', $root . '/storage/evidence'), '/');
+            foreach (glob($evidence . '/*/*') ?: [] as $f) {
+                unlink($f);
+            }
+            foreach (glob($evidence . '/*', GLOB_ONLYDIR) ?: [] as $d) {
+                rmdir($d);
+            }
+            $m = new Migrator($app->db(), $root);
+            $m->migrate();
+            $m->seedReference();
+            require $root . '/database/seeds/DemoSeeder.php';
+            (new DemoSeeder($app, $out))->run();
+            break;
+
         case 'jobs:daily':
             $stats = $app->jobs()->daily();
             $out('daily job: ' . json_encode($stats));
@@ -48,6 +68,7 @@ try {
             $out('  seed [--demo]    load reference data; --demo adds dev users, vendors, DPIAs and templates');
             $out('  jobs:daily       monitoring transitions, reminders (Mailer) and dashboard snapshot — run from cron');
             $out('  snapshot         write today\'s risk_snapshots row set only');
+            $out('  demo:reset       DEMO ONLY: wipe all data and evidence and reload the demo data');
     }
 } catch (Throwable $e) {
     fwrite(STDERR, get_class($e) . ': ' . $e->getMessage() . PHP_EOL);

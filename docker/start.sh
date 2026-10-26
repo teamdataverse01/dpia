@@ -10,6 +10,10 @@ until php -r 'require "vendor/autoload.php"; App\Infrastructure\PdoConnection::f
   echo "waiting for database..."; sleep 2
 done
 
+if [ "${RESET_DEMO_DATA:-0}" = "1" ]; then
+  echo "RESET_DEMO_DATA=1: wiping and reloading demo data (remove the variable afterwards)"
+  php bin/console demo:reset
+fi
 php bin/console migrate
 if [ "${SEED_DEMO:-0}" = "1" ]; then
   php bin/console seed --demo     # skipped automatically when data already exists
