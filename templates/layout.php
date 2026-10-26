@@ -21,7 +21,10 @@ $cur = fn (string $prefix) => str_contains($path, $prefix) ? ' aria-current="pag
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="inner">
-    <a class="brand" href="<?= e(url('/dashboard')) ?>">CU Privacy Risk <small>Vendor &amp; DPIA</small></a>
+    <div class="brand-row">
+      <a class="brand" href="<?= e(url('/dashboard')) ?>">Covenant University</a>
+      <span class="product">Privacy Risk · Vendor Risk Assessment &amp; DPIA</span>
+    </div>
     <?php if ($user): ?>
     <nav aria-label="Main">
       <ul class="nav">
@@ -44,9 +47,8 @@ $cur = fn (string $prefix) => str_contains($path, $prefix) ? ' aria-current="pag
         <li><a href="<?= e(url('/help')) ?>"<?= $cur('/help') ?>>Help</a></li>
       </ul>
     </nav>
-    <div class="userbox">
-      <span><?= e($user->displayName) ?></span>
-      <span class="roles">(<?= e($user->roleLabels()) ?>)</span>
+    <div class="who">
+      <span>Signed in as <strong><?= e($user->displayName) ?></strong> · <?= e($user->roleLabels()) ?></span>
       <?php if (!empty($isDevAuth)): ?>
         <a href="<?= e(url('/dev/switch-user', ['return' => $_SERVER['REQUEST_URI'] ?? ''])) ?>">Switch dev user</a>
       <?php endif; ?>

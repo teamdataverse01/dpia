@@ -91,7 +91,7 @@ $action = '/dashboard';
   <div class="row"><h2 id="rem-h">Remediation</h2><span class="spacer"></span><a href="<?= e(url('/remediation', array_intersect_key($q, ['entity_type' => 1, 'department_id' => 1]))) ?>">Open the tracker</a></div>
   <div class="tiles">
     <?php foreach (['open' => 'Open', 'in_progress' => 'In progress', 'overdue' => 'Overdue', 'completed' => 'Completed'] as $k => $lbl): ?>
-      <a class="tile<?= $k === 'overdue' ? ' tile-high' : '' ?>" href="<?= e(url('/remediation', array_intersect_key($q, ['entity_type' => 1, 'department_id' => 1]) + ['status' => $k])) ?>"><div class="n"><?= (int) $rem['summary'][$k] ?></div><div class="lbl"><?= e($lbl) ?></div></a>
+      <a class="tile<?= $k === 'overdue' ? ' tile-alert' : '' ?>" href="<?= e(url('/remediation', array_intersect_key($q, ['entity_type' => 1, 'department_id' => 1]) + ['status' => $k])) ?>"><div class="n"><?= (int) $rem['summary'][$k] ?></div><div class="lbl"><?= e($lbl) ?></div></a>
     <?php endforeach; ?>
     <div class="tile"><div class="n"><?= $rem['avg_risk_reduced_pct'] === null ? '—' : e(number_format($rem['avg_risk_reduced_pct'], 0)) . '%' ?></div><div class="lbl">Average risk reduced by controls</div></div>
   </div>

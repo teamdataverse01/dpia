@@ -11,7 +11,7 @@ $return = '/' . ltrim(substr($return, strlen(url(''))), '/');
 </div>
 <div class="tiles">
   <?php foreach (['open_all' => ['Open (all)', $summary['open'] + $summary['in_progress'] + $summary['overdue']], 'overdue' => ['Overdue', $summary['overdue']], 'in_progress' => ['In progress', $summary['in_progress']], 'completed' => ['Completed', $summary['completed']]] as $k => [$lbl, $n]): ?>
-    <a class="tile<?= $k === 'overdue' ? ' tile-high' : '' ?>" href="<?= e(url('/remediation', $base + ['status' => $k])) ?>"<?= ($filters['status'] ?? '') === $k ? ' aria-current="true"' : '' ?>><div class="n"><?= (int) $n ?></div><div class="lbl"><?= e($lbl) ?></div></a>
+    <a class="tile<?= $k === 'overdue' ? ' tile-alert' : '' ?>" href="<?= e(url('/remediation', $base + ['status' => $k])) ?>"<?= ($filters['status'] ?? '') === $k ? ' aria-current="true"' : '' ?>><div class="n"><?= (int) $n ?></div><div class="lbl"><?= e($lbl) ?></div></a>
   <?php endforeach; ?>
 </div>
 <form class="card filters" method="get" action="<?= e(url('/remediation')) ?>">
