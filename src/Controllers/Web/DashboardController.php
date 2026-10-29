@@ -76,7 +76,10 @@ final class DashboardController extends BaseController
             'title' => 'Remediation tracker',
             'filters' => $f,
             'summary' => \App\Services\RemediationService::summary($all),
-            'rows' => $this->app->remediation()->list($user, $f),
+            'rows' => array_map(
+                fn ($a) => $a + ['owner_name' => $this->app->people()->name($a['owner_portal_user_id'])],
+                $this->app->remediation()->list($user, $f),
+            ),
             'departments' => $this->app->refs()->departments(),
         ]);
     }

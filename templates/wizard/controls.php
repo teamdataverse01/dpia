@@ -43,6 +43,9 @@ foreach ($rows as $r) {
         <?php if ($r['counts_for_clearance']): ?>
           <span class="tag <?= $met ? 'tag-ok' : 'tag-bad' ?>"><?= $met ? 'meets criteria' : 'criteria not met' ?></span>
         <?php endif; ?>
+        <?php if (isset($assigned[$cid])): $as = $assigned[$cid]; ?>
+          <span class="tag<?= $as['display_status'] === 'overdue' ? ' tag-bad' : '' ?>">assigned to <?= e($as['owner_name']) ?> · due <?= fmt_date($as['target_date']) ?></span>
+        <?php endif; ?>
       </summary>
       <div class="body">
         <p class="small"><?= e($ctl['description']) ?></p>

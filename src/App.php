@@ -176,6 +176,11 @@ final class App
         ));
     }
 
+    public function people(): Services\PeopleDirectory
+    {
+        return $this->once(Services\PeopleDirectory::class, fn () => new Services\PeopleDirectory($this->refs(), $this->auth()));
+    }
+
     public function notifier(): Services\Notifier
     {
         return $this->once(Services\Notifier::class, fn () => new Services\Notifier($this->mailer(), $this->auth(), $this->refs(), (string) $this->config->get('APP_BASE_URL', '')));

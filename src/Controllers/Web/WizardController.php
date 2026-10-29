@@ -319,8 +319,16 @@ final class WizardController extends BaseController
         $explanation = $this->app->assessments()->residualExplanation($e);
         $inList = array_map(fn ($r) => $r['control']['id'], $rows);
         $addable = array_values(array_filter($this->app->controls()->all(), fn ($c) => !in_array($c['id'], $inList, true)));
+        // open remediation actions per control, so this screen shows who is fixing what (and by when)
+        $assigned = [];
+        foreach ($this->app->remediation()->list($user, ['risk_entity_id' => (int) $e['id']]) as $a) {
+            if ($a['control_id'] !== null && in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true)) {
+                $assigned[(int) $a['control_id']] ??= $a + ['owner_name' => $this->app->people()->name($a['owner_portal_user_id'])];
+            }
+        }
         return $this->render('wizard/controls', $this->ctx($user, $e, 'controls') + [
             'rows' => $rows,
+            'assigned' => $assigned,
             'explanation' => $explanation,
             'addable' => $addable,
             'canVerify' => St::from($e['status'])->isEditable() && $this->app->authz()->can($user, P::VerifyEvidence, $e),
@@ -336,7 +344,12 @@ final class WizardController extends BaseController
         $cid = $request->intParam('cid');
         try {
             $this->app->controlService()->record($user, (int) $e['id'], $cid, self::only($request->body, ['status', 'effectiveness_pct', 'evidence_owner', 'evidence_date', 'expiry_date', 'notes']), $request->file('evidence'));
-            $this->flash('success', 'Control saved. Residual risk updated.');
+            $fresh = $this->app->entities()->find((int) $e['id']);
+            $stillGap = in_array($cid, array_map(fn ($g) => (int) $g['control']['id'], $this->app->controlService()->gaps($fresh)), true);
+            $hasOpenAction = $this->app->remediationRepo()->openForControl((int) $e['id'], $cid) !== null;
+            $this->flash('success', !$stillGap && $hasOpenAction
+                ? 'Control saved — this gap is now fixed. Residual risk updated. Mark its action as completed on the Remediation plan (step 8).'
+                : 'Control saved. Residual risk updated.' . ($stillGap ? ' This control still has a gap — see “Still needed”.' : ''));
         } catch (ValidationException $ex) {
             $this->flash('error', $ex->getMessage() . ' ' . implode(' ', $ex->fields));
         }
@@ -408,16 +421,40 @@ final class WizardController extends BaseController
     {
         $e = $this->load($user, $request);
         $actions = $this->app->remediation()->list($user, ['risk_entity_id' => (int) $e['id']]);
+        $people = $this->app->people();
+
+        // Every gap stays listed; ones that already have an open action show who has it and by when.
+        $gaps = $this->app->controlService()->gaps($e);
+        $gapIds = [];
+        foreach ($gaps as $g) {
+            $gapIds[(int) $g['control']['id']] = true;
+        }
         $openByControl = [];
-        foreach ($actions as $a) {
-            if (in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true) && $a['control_id'] !== null) {
-                $openByControl[(int) $a['control_id']] = true;
+        foreach ($actions as &$a) {
+            $open = in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true);
+            $a['owner_name'] = $people->name($a['owner_portal_user_id']);
+            // the control this action was for now meets the criteria → the work is done, close the action
+            $a['gap_fixed'] = $open && $a['control_id'] !== null && !isset($gapIds[(int) $a['control_id']]);
+            if ($open && $a['control_id'] !== null) {
+                $openByControl[(int) $a['control_id']] ??= $a;
             }
         }
-        $gaps = array_values(array_filter($this->app->controlService()->gaps($e), fn ($g) => !isset($openByControl[$g['control']['id']])));
+        unset($a);
+        foreach ($gaps as &$g) {
+            $g['action'] = $openByControl[(int) $g['control']['id']] ?? null;
+            $g['suggested_owner'] = $people->firstWithRole($g['control']['owner_role']);
+        }
+        unset($g);
+
         return $this->render('wizard/remediation', $this->ctx($user, $e, 'remediation') + [
             'actions' => $actions,
             'gaps' => $gaps,
+            'people' => $people->all(),
+            'counts' => [
+                'gaps' => count($gaps),
+                'assigned' => count(array_filter($gaps, fn ($g) => $g['action'] !== null)),
+                'fixed' => count(array_filter($actions, fn ($a) => $a['gap_fixed'])),
+            ],
             'canManage' => $this->app->authz()->can($user, P::ManageRemediation, $e),
             'errors' => $errors,
             'old' => $old,

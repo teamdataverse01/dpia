@@ -1,65 +1,124 @@
 <?php
-/** @var array $e @var array $actions @var array $gaps @var bool $canManage @var array $errors @var array $old @var string $defaultDate */
+/**
+ * @var array $e @var array $actions @var array $gaps @var array $people @var array $counts
+ * @var bool $canManage @var array $errors @var array $old @var string $defaultDate
+ */
 include __DIR__ . '/../partials/entity_header.php';
 $id = (int) $e['id'];
 $return = "/assessments/{$id}/remediation";
+$fixLink = fn (int $cid) => url("/assessments/{$id}/controls", ['control' => $cid]) . '#control-' . $cid;
+$unassigned = $counts['gaps'] - $counts['assigned'];
 ?>
-<?php $openCount = count(array_filter($actions, fn ($a) => in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true))); ?>
 <div class="card">
   <h2>Remediation plan</h2>
-  <p>A <strong>gap</strong> is a recommended safeguard (control) that is not fully in place yet — for example it is not implemented, is less than 70% effective, has no evidence, or its evidence has not been verified. Gaps are why the residual risk has not come down further.</p>
-  <p>This page turns each gap into an <strong>action</strong>: who will fix it, how urgent it is, and by when. When the control is fixed, record it on the Control assessment screen and the residual risk updates.</p>
+  <p>A <strong>gap</strong> is a recommended safeguard (control) that is not fully in place yet. Gaps are why the residual risk has not come down further.</p>
+  <ol class="small">
+    <li><strong>Assign</strong> each gap here: who will fix it, how urgent it is (priority) and by when (target date). This is a to-do — it does not change the risk.</li>
+    <li>The owner does the work, then presses <strong>Record the fix</strong> to open the control and mark it implemented, give its effectiveness and upload evidence.</li>
+    <li>When the control meets all the criteria the gap disappears, the residual risk is recalculated, and the action shows <strong>Gap fixed — mark as completed</strong>.</li>
+  </ol>
   <div class="row">
-    <span class="tag<?= $gaps ? ' tag-bad' : ' tag-ok' ?>"><?= count($gaps) ?> gap<?= count($gaps) === 1 ? '' : 's' ?> still need an action</span>
-    <span class="tag"><?= (int) $openCount ?> action<?= $openCount === 1 ? '' : 's' ?> in progress</span>
+    <span class="tag<?= $counts['gaps'] ? ' tag-bad' : ' tag-ok' ?>"><?= (int) $counts['gaps'] ?> gap<?= $counts['gaps'] === 1 ? '' : 's' ?> open</span>
+    <span class="tag"><?= (int) $counts['assigned'] ?> assigned</span>
+    <span class="tag<?= $unassigned ? ' tag-bad' : '' ?>"><?= (int) $unassigned ?> not assigned yet</span>
+    <?php if ($counts['fixed']): ?><span class="tag tag-ok"><?= (int) $counts['fixed'] ?> fixed, ready to close</span><?php endif; ?>
   </div>
 </div>
 
 <?php if ($gaps !== []): ?>
-  <h2>Step 1 — Gaps that still need an action</h2>
-  <p class="muted small">Each box shows what is missing. Choose an owner, a priority and a target date, then press “Create action”.</p>
-  <?php foreach ($gaps as $g): $c = $g['control']; ?>
-    <div class="card">
-      <h3><?= e($c['title']) ?> <span class="tag"><?= e(ucfirst($c['category'])) ?></span><?php if ($g['mandatory_for_clearance']): ?> <span class="tag">mandatory</span><?php endif; ?></h3>
+  <h2>Gaps</h2>
+  <?php foreach ($gaps as $g): $c = $g['control']; $cid = (int) $c['id']; $a = $g['action']; ?>
+    <div class="card" id="gap-<?= $cid ?>">
+      <div class="row">
+        <h3><?= e($c['title']) ?></h3>
+        <span class="tag"><?= e(ucfirst($c['category'])) ?></span>
+        <?php if ($g['mandatory_for_clearance']): ?><span class="tag">mandatory</span><?php endif; ?>
+        <span class="spacer"></span>
+        <?php if ($a): ?><span class="tag tag-ok">assigned</span><?php else: ?><span class="tag tag-bad">not assigned</span><?php endif; ?>
+      </div>
+      <p class="small"><strong>Still missing:</strong></p>
       <ul class="unmet"><?php foreach ($g['unmet'] as $u): ?><li><?= e($u) ?></li><?php endforeach; ?></ul>
-      <?php if ($canManage): ?>
+
+      <?php if ($a): ?>
+        <p class="note small">
+          Assigned to <strong><?= e($a['owner_name']) ?></strong> · <?= e(ucfirst($a['priority'])) ?> priority · due <?= fmt_date($a['target_date']) ?>
+          <?php include __DIR__ . '/../partials/remediation_status.php'; ?>
+        </p>
+        <a class="btn btn-small" href="<?= e($fixLink($cid)) ?>">Record the fix / upload evidence</a>
+      <?php elseif ($canManage): ?>
         <form method="post" action="<?= e(url($return)) ?>" class="stack">
           <?= csrf_field() ?>
-          <input type="hidden" name="control_id" value="<?= (int) $c['id'] ?>">
+          <input type="hidden" name="control_id" value="<?= $cid ?>">
           <input type="hidden" name="gap_description" value="<?= e($c['title'] . ': ' . implode('; ', $g['unmet']) . '.') ?>">
           <div class="grid grid-3">
-            <div class="field"><label for="o-<?= (int) $c['id'] ?>">Owner (portal user ID)</label><input type="text" id="o-<?= (int) $c['id'] ?>" name="owner_portal_user_id" required placeholder="e.g. dev.infosec"></div>
-            <div class="field"><label for="p-<?= (int) $c['id'] ?>">Priority</label>
-              <select id="p-<?= (int) $c['id'] ?>" name="priority"><option value="high"<?= $g['mandatory_for_clearance'] ? ' selected' : '' ?>>High</option><option value="medium"<?= !$g['mandatory_for_clearance'] ? ' selected' : '' ?>>Medium</option><option value="low">Low</option></select></div>
-            <div class="field"><label for="d-<?= (int) $c['id'] ?>">Target date</label><input type="date" id="d-<?= (int) $c['id'] ?>" name="target_date" required value="<?= e($defaultDate) ?>"></div>
+            <div class="field">
+              <label for="o-<?= $cid ?>">Who will fix it?</label>
+              <?php $selName = 'owner_portal_user_id'; $selId = 'o-' . $cid; $selValue = $g['suggested_owner']; $selRequired = true; include __DIR__ . '/../partials/person_select.php'; ?>
+              <?php if ($c['owner_role']): ?><span class="hint">Usually: <?= e(\App\Domain\Role::from($c['owner_role'])->label()) ?></span><?php endif; ?>
+            </div>
+            <div class="field">
+              <label for="p-<?= $cid ?>">Priority</label>
+              <select id="p-<?= $cid ?>" name="priority">
+                <option value="high"<?= $g['mandatory_for_clearance'] ? ' selected' : '' ?>>High — blocks the risk coming down</option>
+                <option value="medium"<?= !$g['mandatory_for_clearance'] ? ' selected' : '' ?>>Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <span class="hint">How urgent it is. It orders the work; it does not change the score.</span>
+            </div>
+            <div class="field">
+              <label for="d-<?= $cid ?>">Fix by (target date)</label>
+              <input type="date" id="d-<?= $cid ?>" name="target_date" required value="<?= e($defaultDate) ?>">
+              <span class="hint">After this date it shows as overdue.</span>
+            </div>
           </div>
-          <?php if ($c['owner_role']): ?><p class="hint">Suggested owner role: <?= e(\App\Domain\Role::from($c['owner_role'])->label()) ?>.</p><?php endif; ?>
-          <button class="btn btn-small" type="submit">Create action</button>
+          <div class="row">
+            <button class="btn btn-small" type="submit">Assign this gap</button>
+            <a href="<?= e($fixLink($cid)) ?>" class="small">Already fixed? Record it now</a>
+          </div>
         </form>
+      <?php else: ?>
+        <a class="btn btn-small btn-secondary" href="<?= e($fixLink($cid)) ?>">Open the control</a>
       <?php endif; ?>
     </div>
   <?php endforeach; ?>
+<?php else: ?>
+  <p class="note">No gaps: every recommended control meets the criteria.</p>
 <?php endif; ?>
 
 <div class="card">
-  <h2>Step 2 — Track the actions</h2>
-  <p class="muted small">Update the status as work progresses. An action past its target date that is not completed shows as <strong>overdue</strong>.</p>
+  <h2>Actions</h2>
+  <p class="muted small">Everything assigned for this assessment. Anything past its date and not completed shows as <strong>overdue</strong> on the dashboard.</p>
   <?php if ($actions === []): ?>
-    <p class="muted">No remediation actions yet.</p>
+    <p class="muted">No actions yet. Assign a gap above to create one.</p>
   <?php else: ?>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Action</th><th>Owner</th><th>Priority</th><th>Target</th><th>Status</th><th class="num">Done</th><th>Update</th></tr></thead>
+        <thead><tr><th>Action</th><th>Owner</th><th>Priority</th><th>Due</th><th>Status</th><th>Next step</th></tr></thead>
         <tbody>
         <?php foreach ($actions as $a): ?>
           <tr<?= $a['display_status'] === 'overdue' ? ' class="highlight"' : '' ?>>
-            <td><?= e($a['gap_description']) ?><?php if ($a['control_title']): ?><div class="muted small"><?= e($a['control_title']) ?></div><?php endif; ?></td>
-            <td><?= e($a['owner_portal_user_id']) ?></td>
+            <td><?= e($a['control_title'] ?? $a['gap_description']) ?><?php if ($a['control_title']): ?><div class="muted small"><?= e($a['gap_description']) ?></div><?php endif; ?></td>
+            <td><?= e($a['owner_name']) ?></td>
             <td><?= e(ucfirst($a['priority'])) ?></td>
             <td class="nowrap"><?= fmt_date($a['target_date']) ?></td>
             <td><?php include __DIR__ . '/../partials/remediation_status.php'; ?></td>
-            <td class="num"><?= (int) $a['completion_pct'] ?>%</td>
-            <td><?php if ($canManage || $a['owner_portal_user_id'] === $currentUser->id): include __DIR__ . '/../partials/action_row_form.php'; endif; ?></td>
+            <td>
+              <?php $canUpdate = $canManage || $a['owner_portal_user_id'] === $currentUser->id; ?>
+              <?php if ($a['gap_fixed']): ?>
+                <p class="small"><span class="tag tag-ok">Gap fixed</span></p>
+                <?php if ($canUpdate): ?>
+                  <form method="post" action="<?= e(url('/remediation/' . (int) $a['id'])) ?>"><?= csrf_field() ?>
+                    <input type="hidden" name="return" value="<?= e($return) ?>"><input type="hidden" name="status" value="completed">
+                    <button class="btn btn-small" type="submit">Mark as completed</button>
+                  </form>
+                <?php endif; ?>
+              <?php elseif (in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true)): ?>
+                <?php if ($a['control_id']): ?><a class="btn btn-small" href="<?= e($fixLink((int) $a['control_id'])) ?>">Record the fix</a><?php endif; ?>
+                <?php if ($canUpdate): ?><details class="small"><summary>Update status</summary><?php include __DIR__ . '/../partials/action_row_form.php'; ?></details><?php endif; ?>
+              <?php else: ?>
+                <span class="muted small">—</span>
+              <?php endif; ?>
+            </td>
           </tr>
         <?php endforeach; ?>
         </tbody>
@@ -69,27 +128,29 @@ $return = "/assessments/{$id}/remediation";
 </div>
 
 <?php if ($canManage): ?>
-  <form class="card" method="post" action="<?= e(url($return)) ?>" novalidate>
-    <?= csrf_field() ?>
-    <h2>Add any other action</h2>
-    <p class="muted small">For work that is not tied to one of the gaps above.</p>
-    <div class="field">
-      <label for="gap_description">What needs to be done?</label>
-      <textarea id="gap_description" name="gap_description" required<?= aria_err($errors, 'gap_description') ?>><?= e($old['gap_description'] ?? '') ?></textarea>
-      <?= field_error($errors, 'gap_description') ?>
-    </div>
-    <div class="grid grid-3">
-      <div class="field"><label for="owner_portal_user_id">Owner (portal user ID)</label>
-        <input type="text" id="owner_portal_user_id" name="owner_portal_user_id" required value="<?= e($old['owner_portal_user_id'] ?? '') ?>"<?= aria_err($errors, 'owner_portal_user_id') ?>><?= field_error($errors, 'owner_portal_user_id') ?></div>
-      <div class="field"><label for="priority">Priority</label>
-        <select id="priority" name="priority"<?= aria_err($errors, 'priority') ?>><option value="">Choose…</option><?php foreach (['high', 'medium', 'low'] as $p): ?><option value="<?= $p ?>"<?= selected($old['priority'] ?? '', $p) ?>><?= ucfirst($p) ?></option><?php endforeach; ?></select><?= field_error($errors, 'priority') ?></div>
-      <div class="field"><label for="target_date">Target date</label>
-        <input type="date" id="target_date" name="target_date" required value="<?= e($old['target_date'] ?? $defaultDate) ?>"<?= aria_err($errors, 'target_date') ?>><?= field_error($errors, 'target_date') ?></div>
-    </div>
-    <div class="field"><label for="reviewer_portal_user_id">Reviewer (portal user ID, optional)</label>
-      <input type="text" id="reviewer_portal_user_id" name="reviewer_portal_user_id" value="<?= e($old['reviewer_portal_user_id'] ?? '') ?>"></div>
-    <button class="btn" type="submit">Add action</button>
-  </form>
+  <details class="card"<?= $errors ? ' open' : '' ?>>
+    <summary><strong>Add any other action</strong> <span class="muted small">— for work not tied to one of the gaps</span></summary>
+    <form method="post" action="<?= e(url($return)) ?>" novalidate class="stack">
+      <?= csrf_field() ?>
+      <div class="field">
+        <label for="gap_description">What needs to be done?</label>
+        <textarea id="gap_description" name="gap_description" required<?= aria_err($errors, 'gap_description') ?>><?= e($old['gap_description'] ?? '') ?></textarea>
+        <?= field_error($errors, 'gap_description') ?>
+      </div>
+      <div class="grid grid-3">
+        <div class="field"><label for="owner_portal_user_id">Who will do it?</label>
+          <?php $selName = 'owner_portal_user_id'; $selId = 'owner_portal_user_id'; $selValue = $old['owner_portal_user_id'] ?? null; $selRequired = true; include __DIR__ . '/../partials/person_select.php'; ?>
+          <?= field_error($errors, 'owner_portal_user_id') ?></div>
+        <div class="field"><label for="priority">Priority</label>
+          <select id="priority" name="priority"<?= aria_err($errors, 'priority') ?>><option value="">Choose…</option><?php foreach (['high', 'medium', 'low'] as $p): ?><option value="<?= $p ?>"<?= selected($old['priority'] ?? '', $p) ?>><?= ucfirst($p) ?></option><?php endforeach; ?></select><?= field_error($errors, 'priority') ?></div>
+        <div class="field"><label for="target_date">Do by (target date)</label>
+          <input type="date" id="target_date" name="target_date" required value="<?= e($old['target_date'] ?? $defaultDate) ?>"<?= aria_err($errors, 'target_date') ?>><?= field_error($errors, 'target_date') ?></div>
+      </div>
+      <div class="field"><label for="reviewer_portal_user_id">Who checks it's done? (optional)</label>
+        <?php $selName = 'reviewer_portal_user_id'; $selId = 'reviewer_portal_user_id'; $selValue = $old['reviewer_portal_user_id'] ?? null; $selRequired = false; include __DIR__ . '/../partials/person_select.php'; ?></div>
+      <button class="btn" type="submit">Add action</button>
+    </form>
+  </details>
 <?php endif; ?>
 
 <div class="form-actions">

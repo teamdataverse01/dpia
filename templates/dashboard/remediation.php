@@ -42,9 +42,9 @@ $return = '/' . ltrim(substr($return, strlen(url(''))), '/');
       <?php foreach ($rows as $a): ?>
         <tr<?= $a['display_status'] === 'overdue' ? ' class="highlight"' : '' ?>>
           <td><?= e($a['gap_description']) ?></td>
-          <td><a href="<?= e(url('/assessments/' . (int) $a['risk_entity_id'] . '/remediation')) ?>"><?= e($a['entity_name']) ?></a> <?= rating_badge($a['residual_rating']) ?></td>
+          <td><a href="<?= e(url('/assessments/' . (int) $a['risk_entity_id'] . '/remediation')) ?>"><?= e($a['entity_name']) ?></a> <?= rating_badge($a['residual_rating']) ?><?php if ($a['control_id'] && in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true)): ?><div class="small"><a href="<?= e(url('/assessments/' . (int) $a['risk_entity_id'] . '/controls', ['control' => (int) $a['control_id']]) . '#control-' . (int) $a['control_id']) ?>">Record the fix →</a></div><?php endif; ?></td>
           <td><?= e($a['department_name'] ?? '—') ?></td>
-          <td><?= e($a['owner_portal_user_id']) ?></td>
+          <td><?= e($a['owner_name']) ?></td>
           <td><?= e(ucfirst($a['priority'])) ?></td>
           <td class="nowrap"><?= fmt_date($a['target_date']) ?></td>
           <td><?php include __DIR__ . '/../partials/remediation_status.php'; ?> <span class="muted small"><?= (int) $a['completion_pct'] ?>%</span></td>
