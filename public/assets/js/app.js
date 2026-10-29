@@ -141,7 +141,21 @@
     sum();
   }
 
+  // --- filter bars: apply as soon as a choice changes (the Apply button still works without JS) ---
+  function initAutoSubmit() {
+    document.querySelectorAll('form[data-auto-submit]').forEach(function (form) {
+      form.addEventListener('change', function (ev) {
+        var t = ev.target;
+        if (t.matches('select, input[type=checkbox], input[type=date]')) {
+          // a date input fires "change" only once a full date is entered (or it is cleared)
+          if (form.requestSubmit) form.requestSubmit(); else form.submit();
+        }
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
+    initAutoSubmit();
     initSharingToggle();
     initPreview();
     initDecisionForm();

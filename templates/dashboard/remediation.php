@@ -14,7 +14,7 @@ $return = '/' . ltrim(substr($return, strlen(url(''))), '/');
     <a class="tile<?= $k === 'overdue' ? ' tile-alert' : '' ?>" href="<?= e(url('/remediation', $base + ['status' => $k])) ?>"<?= ($filters['status'] ?? '') === $k ? ' aria-current="true"' : '' ?>><div class="n"><?= (int) $n ?></div><div class="lbl"><?= e($lbl) ?></div></a>
   <?php endforeach; ?>
 </div>
-<form class="card filters" method="get" action="<?= e(url('/remediation')) ?>">
+<form class="card filters" method="get" action="<?= e(url('/remediation')) ?>" data-auto-submit>
   <div class="field"><label for="r-status">Status</label>
     <select id="r-status" name="status">
       <option value="">Any</option>

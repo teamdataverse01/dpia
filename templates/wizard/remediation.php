@@ -4,13 +4,20 @@ include __DIR__ . '/../partials/entity_header.php';
 $id = (int) $e['id'];
 $return = "/assessments/{$id}/remediation";
 ?>
+<?php $openCount = count(array_filter($actions, fn ($a) => in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true))); ?>
 <div class="card">
   <h2>Remediation plan</h2>
-  <p>Gaps — recommended controls that do not yet meet the clearance criteria — become tracked actions, each with an owner and a target date. Actions past their date and not completed show as <strong>overdue</strong>.</p>
+  <p>A <strong>gap</strong> is a recommended safeguard (control) that is not fully in place yet — for example it is not implemented, is less than 70% effective, has no evidence, or its evidence has not been verified. Gaps are why the residual risk has not come down further.</p>
+  <p>This page turns each gap into an <strong>action</strong>: who will fix it, how urgent it is, and by when. When the control is fixed, record it on the Control assessment screen and the residual risk updates.</p>
+  <div class="row">
+    <span class="tag<?= $gaps ? ' tag-bad' : ' tag-ok' ?>"><?= count($gaps) ?> gap<?= count($gaps) === 1 ? '' : 's' ?> still need an action</span>
+    <span class="tag"><?= (int) $openCount ?> action<?= $openCount === 1 ? '' : 's' ?> in progress</span>
+  </div>
 </div>
 
 <?php if ($gaps !== []): ?>
-  <h2>Gaps without an action yet</h2>
+  <h2>Step 1 — Gaps that still need an action</h2>
+  <p class="muted small">Each box shows what is missing. Choose an owner, a priority and a target date, then press “Create action”.</p>
   <?php foreach ($gaps as $g): $c = $g['control']; ?>
     <div class="card">
       <h3><?= e($c['title']) ?> <span class="tag"><?= e(ucfirst($c['category'])) ?></span><?php if ($g['mandatory_for_clearance']): ?> <span class="tag">mandatory</span><?php endif; ?></h3>
@@ -35,7 +42,8 @@ $return = "/assessments/{$id}/remediation";
 <?php endif; ?>
 
 <div class="card">
-  <h2>Actions</h2>
+  <h2>Step 2 — Track the actions</h2>
+  <p class="muted small">Update the status as work progresses. An action past its target date that is not completed shows as <strong>overdue</strong>.</p>
   <?php if ($actions === []): ?>
     <p class="muted">No remediation actions yet.</p>
   <?php else: ?>
@@ -63,7 +71,8 @@ $return = "/assessments/{$id}/remediation";
 <?php if ($canManage): ?>
   <form class="card" method="post" action="<?= e(url($return)) ?>" novalidate>
     <?= csrf_field() ?>
-    <h2>Add an action</h2>
+    <h2>Add any other action</h2>
+    <p class="muted small">For work that is not tied to one of the gaps above.</p>
     <div class="field">
       <label for="gap_description">What needs to be done?</label>
       <textarea id="gap_description" name="gap_description" required<?= aria_err($errors, 'gap_description') ?>><?= e($old['gap_description'] ?? '') ?></textarea>

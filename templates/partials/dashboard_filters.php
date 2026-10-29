@@ -1,5 +1,5 @@
 <?php /** @var array $filters @var array $departments @var string $action */ ?>
-<form class="card filters" method="get" action="<?= e(url($action)) ?>">
+<form class="card filters" method="get" action="<?= e(url($action)) ?>" data-auto-submit>
   <div class="field">
     <label for="f-type">Type</label>
     <select id="f-type" name="entity_type">
