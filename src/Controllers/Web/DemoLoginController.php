@@ -7,7 +7,6 @@ namespace App\Controllers\Web;
 use App\Http\Request;
 use App\Http\Response;
 use App\Infrastructure\DemoAuthProvider;
-use App\Infrastructure\DevAuthProvider;
 use App\Support\NotFoundException;
 
 /** Sign-in / sign-out for the demo deployment only (AUTH_ADAPTER=demo). */
@@ -25,14 +24,16 @@ final class DemoLoginController extends BaseController
     public function form(Request $request, ?string $error = null, string $username = ''): Response
     {
         $this->provider();
-        $accounts = [];
-        foreach (DemoAuthProvider::usernames() as $username2 => $id) {
-            $accounts[] = [
-                'username' => $username2,
-                'name' => DevAuthProvider::USERS[$id][0],
-                'roles' => $this->app->refs()->rolesFor($id)['roles'],
-            ];
-        }
+        // The accounts shown on the sign-in page, in demo order (the other demo accounts still sign in).
+        $accounts = [
+            ['username' => 'dpo', 'who' => 'Dami Ogun, Privacy Team / DPO', 'shows' => 'the dashboard and approvals'],
+            ['username' => 'requestor', 'who' => 'Ada Okafor, Activity Owner (owns 6 records)', 'shows' => 'creating a DPIA'],
+            ['username' => 'requestor2', 'who' => 'Tunde Bakare, Activity Owner (owns the other 5)', 'shows' => 'that requestors only see their own records'],
+            ['username' => 'approver', 'who' => 'Funmi Bello, Risk Approver', 'shows' => 'High-risk sign-off'],
+            ['username' => 'vendor', 'who' => "JAMB's contact", 'shows' => 'that a vendor sees only its own record'],
+            ['username' => 'auditor', 'who' => 'Halima Musa, Auditor', 'shows' => 'the read-only audit log'],
+            ['username' => 'admin', 'who' => 'Gbenga Lawal, Administrator', 'shows' => 'scoring settings'],
+        ];
         $this->app->view()->share('flash', []);
         return $this->render('auth/login', [
             'title' => 'Sign in',

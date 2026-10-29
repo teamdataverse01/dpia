@@ -23,10 +23,10 @@
     <p class="muted small">Each account shows the module from one role's point of view. All use the same demo password.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Username</th><th>Name</th><th>Role</th></tr></thead>
+        <thead><tr><th>Username</th><th>Who they are</th><th>Use them to show</th></tr></thead>
         <tbody>
         <?php foreach ($accounts as $a): ?>
-          <tr><td><code><?= e($a['username']) ?></code></td><td><?= e($a['name']) ?></td><td><?= e(implode(', ', array_map(fn ($r) => $r->label(), $a['roles']))) ?></td></tr>
+          <tr><td><code><?= e($a['username']) ?></code></td><td><?= e($a['who']) ?></td><td><?= e($a['shows']) ?></td></tr>
         <?php endforeach; ?>
         </tbody>
       </table>
