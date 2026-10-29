@@ -126,6 +126,19 @@ final class HttpTest extends IntegrationTestCase
         self::assertGreaterThanOrEqual(3, count(self::json($r)['data']));
     }
 
+    public function testTrackerListsGapsNobodyOwns(): void
+    {
+        $body = $this->call('GET', '/remediation', 'dev.privacy_dpo')->body;
+        self::assertStringContainsString('Gaps nobody owns yet', $body);
+        $section = substr($body, strpos($body, 'id="unowned"'), strpos($body, 'Assigned actions') - strpos($body, 'id="unowned"'));
+        self::assertStringContainsString('Campus CCTV with facial recognition', $section, 'in progress, nothing assigned');
+        self::assertStringNotContainsString('>Paystack<', $section, 'approved: its remaining gaps were accepted');
+        self::assertStringNotContainsString('Alumni newsletter', $section, 'a draft has no gaps yet');
+
+        $risks = $this->call('GET', '/risks', 'dev.privacy_dpo')->body;
+        self::assertStringContainsString('11 records · 10 scored · 1 not scored yet (draft)', $risks);
+    }
+
     public function testOutputIsEscapedInHtml(): void
     {
         $this->inRollback(function () {

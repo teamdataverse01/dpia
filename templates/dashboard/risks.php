@@ -16,7 +16,9 @@ $extraHidden = array_intersect_key($filters, array_flip(['rating', 'factor', 'cl
 <div class="page-head">
   <div>
     <h1>Risks</h1>
-    <p class="muted"><?= count($rows) ?> item<?= count($rows) === 1 ? '' : 's' ?><?= $describe ? ' · ' . e(implode(' · ', $describe)) : '' ?></p>
+    <?php $scored = count(array_filter($rows, fn ($r) => $r['inherent_rating'] !== null)); $drafts = count($rows) - $scored; ?>
+    <p class="muted"><?= count($rows) ?> record<?= count($rows) === 1 ? '' : 's' ?> · <?= $scored ?> scored<?= $drafts ? ' · ' . $drafts . ' not scored yet (draft)' : '' ?><?= $describe ? ' · ' . e(implode(' · ', $describe)) : '' ?></p>
+    <?php if ($drafts): ?><p class="muted small">The dashboard counts only scored records, so it can show fewer than this list. Each scored record has two ratings — inherent (before safeguards) and residual (after) — it is still one record.</p><?php endif; ?>
   </div>
 </div>
 <?php include __DIR__ . '/../partials/dashboard_filters.php'; ?>

@@ -32,7 +32,7 @@ if (!function_exists('e')) {
     function rating_badge(?string $rating, string $prefix = ''): string
     {
         if ($rating === null || $rating === '') {
-            return '<span class="badge badge-none">Not scored</span>';
+            return '<span class="badge badge-none">Not scored yet</span>';
         }
         $r = Rating::tryFrom($rating);
         return '<span class="badge badge-' . e($rating) . '">' . e($prefix . ($r?->label() ?? $rating)) . '</span>';

@@ -89,7 +89,51 @@ final class DashboardController extends BaseController
             ),
             'people' => $this->app->people()->all(),
             'departments' => $this->app->refs()->departments(),
+            // hidden when looking at "only my actions": that view is about the user's own to-do list
+            'unowned' => isset($f['owner']) ? [] : $this->unownedGaps($user, $f, $all),
         ]);
+    }
+
+    /**
+     * Gaps nobody has been assigned yet, per record (PRD 11.3 "top recurring control gaps", per owner).
+     * Covers records still being worked on, plus decided records whose review is due within 60 days;
+     * other approved records are left out because the approver accepted their remaining gaps.
+     *
+     * @return list<array{entity: array, mandatory: int, optional: int, review_due: bool}>
+     */
+    private function unownedGaps(PortalUser $user, array $f, array $actions): array
+    {
+        $assigned = [];
+        foreach ($actions as $a) {
+            if ($a['control_id'] !== null && in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true)) {
+                $assigned[(int) $a['risk_entity_id'] . ':' . (int) $a['control_id']] = true;
+            }
+        }
+        $inProgress = ['scored', 'controls_in_progress', 'residual_calculated', 'pending_approval', 'rejected', 'reassessment_due'];
+        $reviewSoon = $this->app->clock()->today()->modify('+60 days')->format('Y-m-d');
+        $out = [];
+        $entities = $this->app->entities()->list(array_intersect_key($f, array_flip(['entity_type', 'department_id'])), $this->app->dashboard()->scope($user));
+        foreach ($entities as $e) {
+            $due = $e['next_review_date'] !== null && substr((string) $e['next_review_date'], 0, 10) <= $reviewSoon;
+            if (!in_array($e['status'], $inProgress, true) && !($due && in_array($e['status'], ['approved', 'risk_accepted', 'monitoring'], true))) {
+                continue;
+            }
+            $mandatory = 0;
+            $optional = 0;
+            foreach ($this->app->controlService()->gaps($e) as $g) {
+                if (isset($assigned[(int) $e['id'] . ':' . (int) $g['control']['id']])) {
+                    continue;
+                }
+                $g['mandatory_for_clearance'] ? $mandatory++ : $optional++;
+            }
+            if ($mandatory + $optional > 0) {
+                $out[] = ['entity' => $e, 'mandatory' => $mandatory, 'optional' => $optional, 'review_due' => $due && !in_array($e['status'], $inProgress, true)];
+            }
+        }
+        $rank = ['high' => 0, 'medium' => 1, 'low' => 2, 'very_low' => 3];
+        usort($out, fn ($x, $y) => [$rank[$x['entity']['residual_rating']] ?? 4, -$x['mandatory'], $x['entity']['name']]
+            <=> [$rank[$y['entity']['residual_rating']] ?? 4, -$y['mandatory'], $y['entity']['name']]);
+        return $out;
     }
 
     public function updateAction(Request $request, PortalUser $user): Response
