@@ -11,8 +11,8 @@ $action = '/dashboard';
 ?>
 <div class="page-head">
   <div>
-    <h1>Privacy risk dashboard</h1>
-    <p class="muted"><?= $institutionWide ? 'All vendors and DPIAs across Covenant University.' : 'Showing only the items you own.' ?></p>
+    <h1><?= $institutionWide ? 'Privacy risk dashboard' : 'My risks' ?></h1>
+    <p class="muted"><?= $institutionWide ? 'All vendors and DPIAs across Covenant University.' : 'The vendors and DPIAs you own, and the actions assigned to you. The Privacy Team sees the university-wide view.' ?></p>
   </div>
   <div class="toggle" role="group" aria-label="Rating basis">
     <a href="<?= e(url('/dashboard', $q + ['basis' => 'residual'])) ?>"<?= $basis === 'residual' ? ' aria-current="true"' : '' ?>><?= 'Residual' ?> risk</a>

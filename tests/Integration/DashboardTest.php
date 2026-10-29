@@ -87,6 +87,17 @@ final class DashboardTest extends IntegrationTestCase
         self::assertSame([], $none);
     }
 
+    public function testEachRequestorSeesOnlyTheirOwnRecords(): void
+    {
+        $ada = $this->app()->dashboard()->overview($this->user('dev.requestor'), DashboardService::filters([]));
+        $tunde = $this->app()->dashboard()->overview($this->user('dev.requestor2'), DashboardService::filters([]));
+        $dpo = $this->app()->dashboard()->overview($this->user('dev.privacy_dpo'), DashboardService::filters([]));
+        self::assertSame(6, $ada['total_active']);
+        self::assertSame(4, $tunde['total_active']);
+        self::assertSame($dpo['total_active'], $ada['total_active'] + $tunde['total_active']);
+        self::assertFalse($this->app()->dashboard()->scope($this->user('dev.requestor'))['institution_wide']);
+    }
+
     public function testNonDashboardRolesSeeOnlyTheirOwnItems(): void
     {
         $vendor = $this->user('dev.vendor');

@@ -128,7 +128,7 @@ final class WorkflowTest extends IntegrationTestCase
             self::assertSame('reassessment_due', $this->app()->entities()->find($id)['status']);
             self::assertGreaterThan(0, (int) $this->app()->db()->fetchValue("SELECT COUNT(*) FROM risk_snapshots WHERE snapshot_date = '2026-10-18'"));
 
-            $this->app()->assessments()->startReassessment($this->user('dev.requestor'), $id);
+            $this->app()->assessments()->startReassessment($this->user('dev.requestor2'), $id); // the survey's owner
             self::assertSame('scored', $this->app()->entities()->find($id)['status']);
         });
     }

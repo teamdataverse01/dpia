@@ -48,7 +48,8 @@ final class DemoSeeder
 
         // --- dev users -------------------------------------------------------------------
         $map = [
-            'dev.requestor' => [Role::Requestor, $dept['Admissions']],
+            'dev.requestor' => [Role::Requestor, null],
+            'dev.requestor2' => [Role::Requestor, null],
             'dev.vendor' => [Role::Vendor, null],
             'dev.business_owner' => [Role::BusinessOwner, null],
             'dev.infosec' => [Role::InfoSec, null],
@@ -63,7 +64,8 @@ final class DemoSeeder
             [$name, $email] = DevAuthProvider::USERS[$id];
             $this->u[$id] = new PortalUser($id, $name, $email, [$role], [$role->value => $deptId]);
         }
-        $req = $this->u['dev.requestor'];
+        $req = $this->u['dev.requestor'];   // Ada: owns the records the demo script walks through
+        $req2 = $this->u['dev.requestor2']; // Tunde: owns the rest, so each requestor sees only their own
         $this->say('dev users and roles created');
 
         // --- vendors -----------------------------------------------------------------------
@@ -110,7 +112,7 @@ final class DemoSeeder
         $this->app->assessments()->calculateResidual($this->u['dev.infosec'], $m365);
         $this->app->approvals()->submit($req, $m365);
 
-        $turnitin = $this->vendor($req, 'Turnitin', $dept['Registry'], [
+        $turnitin = $this->vendor($req2, 'Turnitin', $dept['Registry'], [
             'legal_name' => 'Turnitin LLC',
             'service_description' => 'Plagiarism checking of student theses and assignments.',
             'contract_end' => '2027-06-30',
@@ -159,7 +161,7 @@ final class DemoSeeder
         $this->clear($a, ControlCategory::Process);
 
         // B. Research survey — no data sharing, Medium → Low with Policy, approved.
-        $b = $this->dpia($req, 'Student wellbeing survey', $dept['Research'], [
+        $b = $this->dpia($req2, 'Student wellbeing survey', $dept['Research'], [
             'purpose' => 'Understand student wellbeing to plan counselling services.',
             'description' => 'Anonymous-by-default online survey with optional contact details for follow-up.',
         ], [
@@ -172,7 +174,7 @@ final class DemoSeeder
         $this->decideFlow($b, [['dev.reviewer', 'approved', 'Policy controls in place and verified.']]);
 
         // C. Staff biometric attendance — shares data with a vendor; only Policy cleared → Medium; remediation plan.
-        $c = $this->dpia($req, 'Staff biometric attendance', $dept['Human Resources'], [
+        $c = $this->dpia($req2, 'Staff biometric attendance', $dept['Human Resources'], [
             'purpose' => 'Record staff attendance with fingerprint scanners.',
             'description' => 'Fingerprint templates are captured at gates and synced to a cloud attendance service.',
             'retention_period' => 'Duration of employment',
@@ -193,7 +195,7 @@ final class DemoSeeder
         $rem->update($this->u['dev.infosec'], $done, ['status' => 'completed']);
 
         // D. Exam results — Low; negligible residual confirmed → Very Low; approved.
-        $d = $this->dpia($req, 'Exam results publication', $dept['Registry'], [
+        $d = $this->dpia($req2, 'Exam results publication', $dept['Registry'], [
             'purpose' => 'Publish semester results to students on the portal.',
             'description' => 'Results are released on each student\'s own portal page; no public lists.',
         ], [
@@ -228,7 +230,7 @@ final class DemoSeeder
         $this->control($f, 'Incident Response Procedure', 'implemented', 60, true);
 
         // G. Draft only.
-        $this->app->assessments()->create($req, EntityType::ProcessingActivity, [
+        $this->app->assessments()->create($req2, EntityType::ProcessingActivity, [
             'name' => 'Alumni newsletter mailing list', 'department_id' => $dept['Registry'],
             'purpose' => 'Keep alumni informed.', 'description' => 'Alumni sign up to receive a quarterly newsletter.',
         ]);
@@ -309,7 +311,7 @@ final class DemoSeeder
     /** Residual → submit → decisions. */
     private function decideFlow(int $entityId, array $decisions): void
     {
-        $owner = $this->u['dev.requestor'];
+        $owner = $this->u[$this->app->entities()->find($entityId)['owner_portal_user_id']]; // the record's owner submits it
         $this->app->assessments()->calculateResidual($owner, $entityId);
         $this->app->approvals()->submit($owner, $entityId);
         foreach ($decisions as [$userId, $decision, $why]) {

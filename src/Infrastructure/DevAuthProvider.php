@@ -18,6 +18,7 @@ final class DevAuthProvider implements AuthProvider
     /** Dev users — one per role (PRD 13). Ids mimic CU portal ids. */
     public const USERS = [
         'dev.requestor' => ['Ada Okafor', 'ada.okafor@dev.cu.local'],
+        'dev.requestor2' => ['Tunde Bakare', 'tunde.bakare@dev.cu.local'],
         'dev.vendor' => ['JAMB Vendor Contact', 'contact@vendor.dev.local'],
         'dev.business_owner' => ['Bola Adeyemi', 'bola.adeyemi@dev.cu.local'],
         'dev.infosec' => ['Chidi Nwosu', 'chidi.nwosu@dev.cu.local'],

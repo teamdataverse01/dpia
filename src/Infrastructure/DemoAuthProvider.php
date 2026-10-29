@@ -28,6 +28,7 @@ final class DemoAuthProvider implements AuthProvider
     {
         return [
             'requestor' => 'dev.requestor',
+            'requestor2' => 'dev.requestor2',
             'dpo' => 'dev.privacy_dpo',
             'approver' => 'dev.risk_approver',
             'reviewer' => 'dev.reviewer',
