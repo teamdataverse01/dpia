@@ -68,7 +68,7 @@ INSERT INTO factor_options (factor, option_key, label, help_text, score, sort_or
 -- scoring_config v1 -----------------------------------------------------------
 INSERT INTO scoring_config (version, config_json, active, change_note, created_by) VALUES (
   1,
-  '{"weights":{"data_classification":20,"data_volume":15,"automated_decision_making":15,"cross_border_transfer":15,"vendor_risk":10,"third_party_transfer":10,"nature_of_processing":5,"data_subject_type":5,"legal_basis":5},"bands":{"low_max":2.0,"medium_max":3.5},"reduction_weights":{"policy":0.15,"process":0.25,"technology":0.40},"clearance_min_effectiveness":70,"review_interval_months":{"high":6,"medium":12,"low":24,"very_low":24},"template_staleness_months":12,"template_signature_threshold":3,"approval_routing":{"high":["risk_approver","privacy_dpo"],"medium":["privacy_dpo"],"low":["reviewer"],"very_low":["reviewer"]}}',
+  '{"weights":{"data_classification":20,"data_volume":15,"automated_decision_making":15,"cross_border_transfer":15,"vendor_risk":10,"third_party_transfer":10,"nature_of_processing":5,"data_subject_type":5,"legal_basis":5},"bands":{"low_max":2.0,"medium_max":3.5},"reduction_weights":{"policy":0.15,"process":0.25,"technology":0.40},"clearance_min_effectiveness":70,"review_interval_months":{"high":6,"medium":12,"low":24,"very_low":24},"template_staleness_months":12,"template_signature_threshold":3,"approval_routing":{"high":["privacy_dpo"],"medium":["privacy_dpo"],"low":["reviewer"],"very_low":["reviewer"]}}',
   TRUE,
   'Initial PRD defaults (sections 8.1, 8.4, 9.4, 13, 16).',
   'system'

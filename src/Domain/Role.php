@@ -12,7 +12,6 @@ enum Role: string
     case InfoSec = 'infosec';
     case PrivacyDpo = 'privacy_dpo';
     case Reviewer = 'reviewer';
-    case RiskApprover = 'risk_approver';
     case Admin = 'admin';
     case Auditor = 'auditor';
 
@@ -25,7 +24,6 @@ enum Role: string
             self::InfoSec => 'Information Security',
             self::PrivacyDpo => 'Privacy Team / DPO',
             self::Reviewer => 'Reviewer',
-            self::RiskApprover => 'Risk Approver',
             self::Admin => 'Administrator',
             self::Auditor => 'Auditor',
         };

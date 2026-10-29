@@ -55,7 +55,6 @@ final class DemoSeeder
             'dev.infosec' => [Role::InfoSec, null],
             'dev.privacy_dpo' => [Role::PrivacyDpo, null],
             'dev.reviewer' => [Role::Reviewer, null],
-            'dev.risk_approver' => [Role::RiskApprover, null],
             'dev.admin' => [Role::Admin, null],
             'dev.auditor' => [Role::Auditor, null],
         ];

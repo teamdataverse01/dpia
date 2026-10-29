@@ -385,7 +385,7 @@ final class AssessmentService
         ];
     }
 
-    /** PRD 9.3 — Very Low confirmation by a Reviewer or Risk Approver, with justification. */
+    /** PRD 9.3 — Very Low confirmation by a Reviewer or the Privacy Team / DPO, with justification. */
     public function confirmNegligible(PortalUser $user, int $id, string $justification, bool $confirm = true): ResidualRiskResult
     {
         $e = $this->get($id);

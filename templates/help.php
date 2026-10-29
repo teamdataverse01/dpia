@@ -23,7 +23,7 @@
     <li>Inherent risk is a weighted average of the factor scores (1–5): up to 2.0 is Low, up to 3.5 is Medium, above that is High.</li>
     <li>High becomes Low only when at least two control types are cleared and one of them is Technology. One cleared type brings High to Medium.</li>
     <li>Medium becomes Low when any one control type is cleared.</li>
-    <li>Very Low is given only when a Reviewer or Risk Approver confirms that a Low remaining risk is negligible.</li>
+    <li>Very Low is given only when a Reviewer or the Privacy Team / DPO confirms that a Low remaining risk is negligible.</li>
     <li>A vendor's risk score counts in a DPIA only when the activity shares data with that vendor.</li>
   </ul>
 </div>

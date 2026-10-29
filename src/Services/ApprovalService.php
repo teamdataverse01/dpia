@@ -23,10 +23,10 @@ use App\Support\ValidationException;
 /**
  * Stage 8 — submission, tiered approval routing and time-boxed risk acceptance (PRD 6, 16).
  *
- * Routing comes from scoring_config.approval_routing (default: High → Risk Approver + Privacy Team/DPO;
- * Medium → Privacy Team/DPO; Low / Very Low → Reviewer). Every required role must approve in the
+ * Routing comes from scoring_config.approval_routing (default: High and Medium → Privacy Team/DPO;
+ * Low / Very Low → Reviewer). Every required role must approve in the
  * current round; any rejection rejects. Accepting the risk instead of approving needs the
- * "approve / accept risk" permission (Risk Approver or Administrator) and an end date.
+ * "approve / accept risk" permission (Privacy Team/DPO or Administrator) and an end date.
  */
 final class ApprovalService
 {
@@ -138,7 +138,7 @@ final class ApprovalService
             throw new ForbiddenException('Your role is not one of the approvers for a ' . Rating::from($e['residual_rating'])->label() . ' residual risk, or your role has already approved.');
         }
         if ($d === D::RiskAccepted && !$this->authz->can($user, P::Approve)) {
-            throw new ForbiddenException('Only a Risk Approver can accept a risk.');
+            throw new ForbiddenException('Only the Privacy Team / DPO can accept a risk.');
         }
 
         return $this->db->transaction(function () use ($user, $id, $e, $d, $justification, $acceptedUntil, $actingRole) {

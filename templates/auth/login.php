@@ -20,16 +20,15 @@
   </div>
   <div class="card">
     <h2>Demo accounts</h2>
-    <p class="muted small">Each account shows the module from one role's point of view. All use the same demo password.</p>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Username</th><th>Who they are</th><th>Use them to show</th></tr></thead>
-        <tbody>
-        <?php foreach ($accounts as $a): ?>
-          <tr><td><code><?= e($a['username']) ?></code></td><td><?= e($a['who']) ?></td><td><?= e($a['shows']) ?></td></tr>
-        <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
+    <p class="muted small">Each account shows the module from one role’s point of view. All use the same demo password.</p>
+    <ul class="accounts">
+      <?php foreach ($accounts as $a): ?>
+        <li>
+          <div class="accounts-head"><code><?= e($a['username']) ?></code> <strong><?= e($a['role']) ?></strong> <span class="muted">· <?= e($a['name']) ?></span></div>
+          <p><?= e($a['does']) ?></p>
+          <p class="muted small"><strong>Try:</strong> <?= e($a['try']) ?></p>
+        </li>
+      <?php endforeach; ?>
+    </ul>
   </div>
 </div>

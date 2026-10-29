@@ -23,13 +23,13 @@ final class Authorizer
         'create' => [R::Requestor, R::Admin],
         'edit_own' => [R::Requestor, R::Vendor, R::Admin],
         'edit_controls' => [R::Vendor, R::BusinessOwner, R::InfoSec, R::PrivacyDpo, R::Reviewer, R::Admin],
-        'approve' => [R::RiskApprover, R::Admin],
+        'approve' => [R::PrivacyDpo, R::Admin], // the DPO also holds the former Risk Approver powers (DECISIONS D-33)
         'admin_config' => [R::Admin],
         'read_all' => [R::Admin, R::Auditor],
     ];
 
     /** Roles that work on other people's records and therefore may view them. */
-    private const OPERATIONAL_VIEWERS = [R::BusinessOwner, R::InfoSec, R::PrivacyDpo, R::Reviewer, R::RiskApprover];
+    private const OPERATIONAL_VIEWERS = [R::BusinessOwner, R::InfoSec, R::PrivacyDpo, R::Reviewer];
 
     public function can(PortalUser $user, P $permission, ?array $resource = null): bool
     {
@@ -42,8 +42,8 @@ final class Authorizer
             P::EditOwn => $this->editOwn($user, $resource),
             P::EditControls => $this->editControls($user, $resource),
             P::View => $this->view($user, $resource),
-            P::ViewDashboard => $this->hasAny($user, [R::PrivacyDpo, R::RiskApprover, R::Auditor]),
-            P::ConfirmNegligible => $this->hasAny($user, [R::Reviewer, R::RiskApprover]),
+            P::ViewDashboard => $this->hasAny($user, [R::PrivacyDpo, R::Auditor]),
+            P::ConfirmNegligible => $this->hasAny($user, [R::Reviewer, R::PrivacyDpo]),
             P::VerifyEvidence => $this->hasAny($user, [R::Reviewer]),
             P::SaveTemplate => $this->hasAny($user, [R::PrivacyDpo]),
             P::Decide => $this->decide($user, $resource),
@@ -77,7 +77,7 @@ final class Authorizer
      */
     public function listScope(PortalUser $user): array
     {
-        if ($this->hasAny($user, [R::Admin, R::Auditor, R::InfoSec, R::PrivacyDpo, R::Reviewer, R::RiskApprover])) {
+        if ($this->hasAny($user, [R::Admin, R::Auditor, R::InfoSec, R::PrivacyDpo, R::Reviewer])) {
             return ['owner_only' => false, 'department_ids' => null];
         }
         if ($user->hasRole(R::BusinessOwner)) {
@@ -120,7 +120,7 @@ final class Authorizer
 
     private function view(PortalUser $user, ?array $resource): bool
     {
-        if ($this->hasAny($user, [R::Auditor, R::InfoSec, R::PrivacyDpo, R::Reviewer, R::RiskApprover])) {
+        if ($this->hasAny($user, [R::Auditor, R::InfoSec, R::PrivacyDpo, R::Reviewer])) {
             return true;
         }
         if ($user->hasRole(R::BusinessOwner) && $this->inBusinessOwnerScope($user, $resource)) {

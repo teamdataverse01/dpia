@@ -48,9 +48,9 @@ final class AuthorizerTest extends TestCase
         yield 'Vendor' => [R::Vendor, [false, true, true, false, false, false]];
         yield 'Business Owner' => [R::BusinessOwner, [false, false, true, false, false, false]];
         yield 'Information Security' => [R::InfoSec, [false, false, true, false, false, false]];
-        yield 'Privacy Team / DPO' => [R::PrivacyDpo, [false, false, true, false, false, false]];
+        // The DPO also holds the approve / accept-risk power (the Risk Approver role was retired, DECISIONS D-33).
+        yield 'Privacy Team / DPO' => [R::PrivacyDpo, [false, false, true, true, false, false]];
         yield 'Reviewer' => [R::Reviewer, [false, false, true, false, false, false]];
-        yield 'Risk Approver' => [R::RiskApprover, [false, false, false, true, false, false]];
         yield 'Administrator' => [R::Admin, [true, true, true, true, true, true]];
         yield 'Auditor' => [R::Auditor, [false, false, false, false, false, true]];
     }
@@ -99,8 +99,8 @@ final class AuthorizerTest extends TestCase
     public function testDerivedPermissions(): void
     {
         self::assertTrue($this->auth->can(self::user(R::Reviewer), P::ConfirmNegligible));
-        self::assertTrue($this->auth->can(self::user(R::RiskApprover), P::ConfirmNegligible));
-        self::assertFalse($this->auth->can(self::user(R::PrivacyDpo), P::ConfirmNegligible));
+        self::assertTrue($this->auth->can(self::user(R::PrivacyDpo), P::ConfirmNegligible));
+        self::assertFalse($this->auth->can(self::user(R::BusinessOwner), P::ConfirmNegligible));
 
         self::assertTrue($this->auth->can(self::user(R::Reviewer), P::VerifyEvidence));
         self::assertFalse($this->auth->can(self::user(R::InfoSec), P::VerifyEvidence));
@@ -108,7 +108,7 @@ final class AuthorizerTest extends TestCase
         self::assertTrue($this->auth->can(self::user(R::PrivacyDpo), P::SaveTemplate));
         self::assertFalse($this->auth->can(self::user(R::Requestor), P::SaveTemplate));
 
-        foreach ([R::PrivacyDpo, R::RiskApprover, R::Auditor] as $r) {
+        foreach ([R::PrivacyDpo, R::Auditor] as $r) {
             self::assertTrue($this->auth->can(self::user($r), P::ViewDashboard), $r->value);
         }
         foreach ([R::Requestor, R::Vendor, R::Reviewer] as $r) {
@@ -118,8 +118,7 @@ final class AuthorizerTest extends TestCase
 
     public function testDecideFollowsApprovalRouting(): void
     {
-        $high = ['required_roles' => [R::RiskApprover, R::PrivacyDpo]];
-        self::assertTrue($this->auth->can(self::user(R::RiskApprover), P::Decide, $high));
+        $high = ['required_roles' => [R::PrivacyDpo]];
         self::assertTrue($this->auth->can(self::user(R::PrivacyDpo), P::Decide, $high));
         self::assertFalse($this->auth->can(self::user(R::Reviewer), P::Decide, $high));
         self::assertTrue($this->auth->can(self::user(R::Reviewer), P::Decide, ['required_roles' => [R::Reviewer]]));

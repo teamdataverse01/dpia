@@ -52,7 +52,7 @@ final class ResidualRiskCalculator
             if ($computed === Rating::Low) {
                 $final = Rating::VeryLow;
                 $negligibleApplied = true;
-                $why .= ' A Reviewer or Risk Approver has confirmed the remaining risk is negligible, so it is rated Very Low.';
+                $why .= ' A Reviewer or the Privacy Team / DPO has confirmed the remaining risk is negligible, so it is rated Very Low.';
             } else {
                 $why .= ' (A negligible-risk confirmation is on record but only applies when the computed rating is Low, so it is ignored.)';
             }

@@ -42,48 +42,42 @@ final class WorkflowTest extends IntegrationTestCase
         });
     }
 
-    public function testHighNeedsBothRiskApproverAndPrivacyTeam(): void
+    public function testHighIsApprovedByThePrivacyTeamNotTheReviewer(): void
     {
         $this->inRollback(function () {
             $cctv = $this->entityByName('Campus CCTV with facial recognition'); // High, controls in progress
             $id = (int) $cctv['id'];
             $this->app()->assessments()->calculateResidual($this->user('dev.requestor'), $id);
             $this->app()->approvals()->submit($this->user('dev.requestor'), $id);
-
-            self::assertSame('recorded', $this->app()->approvals()->decide($this->user('dev.risk_approver'), $id, 'approved', 'Accept with plan.', null));
-            self::assertSame('pending_approval', $this->app()->entities()->find($id)['status']);
-            $round = $this->app()->approvals()->round($this->app()->entities()->find($id));
-            self::assertSame([Role::PrivacyDpo], $round['outstanding']);
+            self::assertSame([Role::PrivacyDpo], $this->app()->approvals()->round($this->app()->entities()->find($id))['required']);
 
             try {
-                $this->app()->approvals()->decide($this->user('dev.risk_approver'), $id, 'approved', 'Again.', null);
-                self::fail('the same role cannot approve twice');
+                $this->app()->approvals()->decide($this->user('dev.reviewer'), $id, 'approved', 'Looks fine.', null);
+                self::fail('a Reviewer only approves Low-risk items');
             } catch (ForbiddenException) {
             }
 
-            self::assertSame('approved', $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), $id, 'approved', 'Agreed.', null));
+            self::assertSame('approved', $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), $id, 'approved', 'Agreed, with the plan.', null));
             self::assertSame('2027-04-18', $this->app()->entities()->find($id)['next_review_date']); // High → 6 months
         });
     }
 
-    public function testRiskAcceptanceIsTimeBoxedAndOnlyForRiskApprovers(): void
+    public function testRiskAcceptanceIsTimeBoxedAndOnlyForThePrivacyTeam(): void
     {
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Microsoft 365')['id'];
             try {
-                $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), $id, 'risk_accepted', 'Accept it.', '2027-01-31');
-                self::fail('privacy team cannot accept risk');
+                $this->app()->approvals()->decide($this->user('dev.reviewer'), $id, 'risk_accepted', 'Accept it.', '2027-01-31');
+                self::fail('a Reviewer cannot accept risk');
             } catch (ForbiddenException) {
             }
-            // Medium routes to the Privacy Team; accepting the risk additionally needs the Risk Approver permission.
-            $ra2 = new \App\Domain\PortalUser('ra2', 'RA', null, [Role::RiskApprover, Role::PrivacyDpo]);
             try {
-                $this->app()->approvals()->decide($ra2, $id, 'risk_accepted', 'Accept it.', null);
+                $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), $id, 'risk_accepted', 'Accept it.', null);
                 self::fail('end date required');
             } catch (ValidationException $e) {
                 self::assertArrayHasKey('accepted_until', $e->fields);
             }
-            self::assertSame('risk_accepted', $this->app()->approvals()->decide($ra2, $id, 'risk_accepted', 'Accept until migration.', '2027-01-31'));
+            self::assertSame('risk_accepted', $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), $id, 'risk_accepted', 'Accept until migration.', '2027-01-31'));
             self::assertSame('2027-01-31', $this->app()->entities()->find($id)['next_review_date']);
         });
     }

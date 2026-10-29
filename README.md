@@ -48,7 +48,7 @@ The demo runs on Railway (project `cu-privacy-risk`): an `app` service built fro
 | `SEED_DEMO` | `1`: load demo data on first start (skipped if data exists) |
 | `APP_BASE_URL` | the public Railway URL |
 
-Demo usernames are `requestor`, `dpo`, `approver`, `reviewer`, `infosec`, `owner`, `vendor`, `admin` and `auditor`, one per role. All use `DEMO_PASSWORD`.
+Demo usernames are `dpo`, `requestor`, `requestor2`, `owner`, `reviewer`, `vendor`, `auditor` and `admin` (plus `infosec`, which signs in but is not listed). The sign-in page explains each role. All use `DEMO_PASSWORD`.
 
 **Reset the demo to its starting state:** set `RESET_DEMO_DATA=1` on the app service, wait for the deploy, then delete the variable. Locally, run `php bin/console demo:reset`. The reset refuses to run unless `AUTH_ADAPTER=demo`.
 

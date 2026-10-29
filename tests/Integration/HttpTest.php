@@ -51,7 +51,7 @@ final class HttpTest extends IntegrationTestCase
     {
         $this->inRollback(function () {
             $body = ['entity_type' => 'vendor', 'name' => 'Acme', 'department_id' => 1, 'service_description' => 'Things.'];
-            foreach (['dev.auditor', 'dev.reviewer', 'dev.risk_approver', 'dev.infosec', 'dev.vendor'] as $u) {
+            foreach (['dev.auditor', 'dev.reviewer', 'dev.infosec', 'dev.vendor'] as $u) {
                 self::assertSame(403, $this->call('POST', '/api/v1/risk-entities', $u, $body)->status, $u);
             }
             $ok = $this->call('POST', '/api/v1/risk-entities', 'dev.requestor', $body);

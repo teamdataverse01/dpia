@@ -16,7 +16,7 @@ CREATE TABLE departments (
 CREATE TABLE user_roles (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   portal_user_id VARCHAR(100) NOT NULL,
-  role VARCHAR(40) NOT NULL,              -- requestor|vendor|business_owner|infosec|privacy_dpo|reviewer|risk_approver|admin|auditor
+  role VARCHAR(40) NOT NULL,              -- requestor|vendor|business_owner|infosec|privacy_dpo|reviewer|admin|auditor
   department_id BIGINT NULL REFERENCES departments(id),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

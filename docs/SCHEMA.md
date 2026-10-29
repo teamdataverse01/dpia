@@ -34,7 +34,7 @@ Source of truth: `database/migrations/*.sql` (applied in order by `php bin/conso
   "review_interval_months": {"high":6,"medium":12,"low":24,"very_low":24},
   "template_staleness_months": 12,
   "template_signature_threshold": 3,
-  "approval_routing": {"high":["risk_approver","privacy_dpo"],"medium":["privacy_dpo"],"low":["reviewer"],"very_low":["reviewer"]}
+  "approval_routing": {"high":["privacy_dpo"],"medium":["privacy_dpo"],"low":["reviewer"],"very_low":["reviewer"]}
 }
 ```
 

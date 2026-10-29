@@ -24,7 +24,6 @@ final class DevAuthProvider implements AuthProvider
         'dev.infosec' => ['Chidi Nwosu', 'chidi.nwosu@dev.cu.local'],
         'dev.privacy_dpo' => ['Dami Ogun', 'dami.ogun@dev.cu.local'],
         'dev.reviewer' => ['Efe Ibrahim', 'efe.ibrahim@dev.cu.local'],
-        'dev.risk_approver' => ['Funmi Bello', 'funmi.bello@dev.cu.local'],
         'dev.admin' => ['Gbenga Lawal', 'gbenga.lawal@dev.cu.local'],
         'dev.auditor' => ['Halima Musa', 'halima.musa@dev.cu.local'],
     ];

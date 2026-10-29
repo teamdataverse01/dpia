@@ -42,7 +42,7 @@ $x = $explanation;
       </tbody>
     </table>
   </div>
-  <p class="small muted">Rules: High → Low needs two cleared types including Technology. Medium → Low needs one. Very Low is only given when a Reviewer or Risk Approver confirms that a Low remaining risk is negligible.</p>
+  <p class="small muted">Rules: High → Low needs two cleared types including Technology. Medium → Low needs one. Very Low is only given when a Reviewer or the Privacy Team / DPO confirms that a Low remaining risk is negligible.</p>
 </div>
 
 <?php if ($canConfirmNegligible): ?>
