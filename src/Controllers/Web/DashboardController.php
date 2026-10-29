@@ -74,6 +74,7 @@ final class DashboardController extends BaseController
         $all = $this->app->remediation()->list($user, array_intersect_key($f, array_flip(['department_id', 'entity_type'])));
         return $this->render('dashboard/remediation', [
             'title' => 'Remediation tracker',
+            'institutionWide' => $this->app->dashboard()->scope($user)['institution_wide'],
             'filters' => $f,
             'summary' => \App\Services\RemediationService::summary($all),
             'rows' => array_map(

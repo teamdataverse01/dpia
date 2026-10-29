@@ -135,6 +135,13 @@ final class HttpTest extends IntegrationTestCase
         self::assertStringNotContainsString('>Paystack<', $section, 'approved: its remaining gaps were accepted');
         self::assertStringNotContainsString('Alumni newsletter', $section, 'a draft has no gaps yet');
 
+        // a requestor gets the same tracker, limited to the records they own and worded for them
+        $ada = $this->call('GET', '/remediation', 'dev.requestor')->body;
+        self::assertStringContainsString('Remediation on my records', $ada);
+        self::assertStringContainsString('Campus CCTV with facial recognition', $ada);
+        self::assertStringNotContainsString('Turnitin', $ada, "Tunde's record");
+        self::assertStringNotContainsString('across the university', $ada);
+
         $risks = $this->call('GET', '/risks', 'dev.privacy_dpo')->body;
         self::assertStringContainsString('11 records · 10 scored · 1 not scored yet (draft)', $risks);
     }
