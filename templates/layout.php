@@ -4,7 +4,9 @@ use App\Domain\Permission as P;
 
 $user = $currentUser ?? null;
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-$cur = fn (string $prefix) => str_contains($path, $prefix) ? ' aria-current="page"' : '';
+// highlight the menu item whose section the page is in (match the start of the path, after APP_BASE_PATH)
+$rel = substr($path, strlen(url(''))) ?: '/';
+$cur = fn (string $prefix) => str_starts_with($rel, $prefix) ? ' aria-current="page"' : '';
 ?><!doctype html>
 <html lang="en">
 <head>
