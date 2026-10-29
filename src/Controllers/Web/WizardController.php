@@ -342,14 +342,10 @@ final class WizardController extends BaseController
     {
         $e = $this->load($user, $request);
         $cid = $request->intParam('cid');
+        $hadOpenAction = $this->app->remediationRepo()->openForControl((int) $e['id'], $cid) !== null;
         try {
             $this->app->controlService()->record($user, (int) $e['id'], $cid, self::only($request->body, ['status', 'effectiveness_pct', 'evidence_owner', 'evidence_date', 'expiry_date', 'notes']), $request->file('evidence'));
-            $fresh = $this->app->entities()->find((int) $e['id']);
-            $stillGap = in_array($cid, array_map(fn ($g) => (int) $g['control']['id'], $this->app->controlService()->gaps($fresh)), true);
-            $hasOpenAction = $this->app->remediationRepo()->openForControl((int) $e['id'], $cid) !== null;
-            $this->flash('success', !$stillGap && $hasOpenAction
-                ? 'Control saved — this gap is now fixed. Residual risk updated. Mark its action as completed on the Remediation plan (step 8).'
-                : 'Control saved. Residual risk updated.' . ($stillGap ? ' This control still has a gap — see “Still needed”.' : ''));
+            $this->flash('success', $this->fixMessage((int) $e['id'], $cid, $hadOpenAction, 'Control saved.'));
         } catch (ValidationException $ex) {
             $this->flash('error', $ex->getMessage() . ' ' . implode(' ', $ex->fields));
         }
@@ -370,9 +366,22 @@ final class WizardController extends BaseController
         $e = $this->load($user, $request);
         $cid = $request->intParam('cid');
         $verified = $request->input('verified', '1') === '1';
+        $hadOpenAction = $this->app->remediationRepo()->openForControl((int) $e['id'], $cid) !== null;
         $this->app->controlService()->verify($user, (int) $e['id'], $cid, $verified);
-        $this->flash('success', $verified ? 'Evidence marked as verified.' : 'Verification removed.');
+        $this->flash('success', $verified ? $this->fixMessage((int) $e['id'], $cid, $hadOpenAction, 'Evidence marked as verified.') : 'Verification removed.');
         return Response::redirect(url("/assessments/{$e['id']}/controls") . '#control-' . $cid);
+    }
+
+    /** Plain-language result after saving or verifying a control: is its gap closed, and did its action close? */
+    private function fixMessage(int $entityId, int $cid, bool $hadOpenAction, string $lead): string
+    {
+        $fresh = $this->app->entities()->find($entityId);
+        $stillGap = in_array($cid, array_map(fn ($g) => (int) $g['control']['id'], $this->app->controlService()->gaps($fresh)), true);
+        if ($stillGap) {
+            return $lead . ' Residual risk updated. This control still has a gap — see “Still needed”.';
+        }
+        return $lead . ' This gap is now fixed and the residual risk has been recalculated.'
+            . ($hadOpenAction ? ' Its remediation action was closed automatically.' : '');
     }
 
     public function evidence(Request $request, PortalUser $user): Response
@@ -422,19 +431,15 @@ final class WizardController extends BaseController
         $e = $this->load($user, $request);
         $actions = $this->app->remediation()->list($user, ['risk_entity_id' => (int) $e['id']]);
         $people = $this->app->people();
+        $canManage = $this->app->authz()->can($user, P::ManageRemediation, $e);
 
         // Every gap stays listed; ones that already have an open action show who has it and by when.
         $gaps = $this->app->controlService()->gaps($e);
-        $gapIds = [];
-        foreach ($gaps as $g) {
-            $gapIds[(int) $g['control']['id']] = true;
-        }
         $openByControl = [];
         foreach ($actions as &$a) {
             $open = in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true);
             $a['owner_name'] = $people->name($a['owner_portal_user_id']);
-            // the control this action was for now meets the criteria → the work is done, close the action
-            $a['gap_fixed'] = $open && $a['control_id'] !== null && !isset($gapIds[(int) $a['control_id']]);
+            $a['can_manage'] = $canManage;
             if ($open && $a['control_id'] !== null) {
                 $openByControl[(int) $a['control_id']] ??= $a;
             }
@@ -453,9 +458,9 @@ final class WizardController extends BaseController
             'counts' => [
                 'gaps' => count($gaps),
                 'assigned' => count(array_filter($gaps, fn ($g) => $g['action'] !== null)),
-                'fixed' => count(array_filter($actions, fn ($a) => $a['gap_fixed'])),
+                'closed' => count(array_filter($actions, fn ($a) => $a['status'] === 'completed')),
             ],
-            'canManage' => $this->app->authz()->can($user, P::ManageRemediation, $e),
+            'canManage' => $canManage,
             'errors' => $errors,
             'old' => $old,
             'defaultDate' => $this->app->clock()->today()->modify('+30 days')->format('Y-m-d'),

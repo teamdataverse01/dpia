@@ -50,9 +50,9 @@ final class DashboardTest extends IntegrationTestCase
             $expected = !in_array($a['status'], ['completed', 'cancelled'], true) && substr($a['target_date'], 0, 10) < '2026-10-18';
             self::assertSame($expected, $a['display_status'] === 'overdue', $a['gap_description']);
         }
-        // the completed action was also past its date, but is not overdue
+        // the completed action is never overdue, even if its date passes later
         $completed = array_values(array_filter($r['actions'], fn ($a) => $a['status'] === 'completed'));
-        self::assertLessThan('2026-10-18', substr($completed[0]['target_date'], 0, 10));
+        self::assertSame('completed', $completed[0]['display_status']);
     }
 
     public function testAtLeastThreeStoriesFromRealDataEachWithALink(): void

@@ -213,7 +213,7 @@ final class App
     public function remediation(): Services\RemediationService
     {
         return $this->once(Services\RemediationService::class, fn () => new Services\RemediationService(
-            $this->db(), $this->remediationRepo(), $this->assessments(), $this->authz(), $this->audit(), $this->clock(),
+            $this->db(), $this->remediationRepo(), $this->assessments(), $this->authz(), $this->audit(), $this->clock(), $this->notifier(),
         ));
     }
 

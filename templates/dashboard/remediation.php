@@ -6,7 +6,7 @@ $return = '/' . ltrim(substr($return, strlen(url(''))), '/');
 <div class="page-head">
   <div>
     <h1>Remediation tracker</h1>
-    <p class="muted">Every action that closes a control gap. Overdue = past its target date and not completed.</p>
+    <p class="muted">Every fix still outstanding across the university, and who owns it. Owners record their fixes; an action closes by itself once its control is fixed and verified. Use this page to spot overdue work and chase it.</p>
   </div>
 </div>
 <div class="tiles">
@@ -36,19 +36,19 @@ $return = '/' . ltrim(substr($return, strlen(url(''))), '/');
 <div class="card">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Action</th><th>Linked risk</th><th>Department</th><th>Owner</th><th>Priority</th><th>Due</th><th>Status</th><th>Update</th></tr></thead>
+      <thead><tr><th>Action</th><th>Linked risk</th><th>Department</th><th>Owner</th><th>Priority</th><th>Due</th><th>Status</th><th>Next step</th></tr></thead>
       <tbody>
       <?php if ($rows === []): ?><tr><td colspan="8" class="muted">No actions match.</td></tr><?php endif; ?>
       <?php foreach ($rows as $a): ?>
         <tr<?= $a['display_status'] === 'overdue' ? ' class="highlight"' : '' ?>>
-          <td><?= e($a['gap_description']) ?></td>
-          <td><a href="<?= e(url('/assessments/' . (int) $a['risk_entity_id'] . '/remediation')) ?>"><?= e($a['entity_name']) ?></a> <?= rating_badge($a['residual_rating']) ?><?php if ($a['control_id'] && in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true)): ?><div class="small"><a href="<?= e(url('/assessments/' . (int) $a['risk_entity_id'] . '/controls', ['control' => (int) $a['control_id']]) . '#control-' . (int) $a['control_id']) ?>">Record the fix →</a></div><?php endif; ?></td>
+          <td><?= e($a['control_title'] ?? $a['gap_description']) ?><?php if ($a['control_title']): ?><div class="muted small"><?= e($a['gap_description']) ?></div><?php endif; ?></td>
+          <td><a href="<?= e(url('/assessments/' . (int) $a['risk_entity_id'] . '/remediation')) ?>"><?= e($a['entity_name']) ?></a> <?= rating_badge($a['residual_rating']) ?></td>
           <td><?= e($a['department_name'] ?? '—') ?></td>
           <td><?= e($a['owner_name']) ?></td>
           <td><?= e(ucfirst($a['priority'])) ?></td>
           <td class="nowrap"><?= fmt_date($a['target_date']) ?></td>
-          <td><?php include __DIR__ . '/../partials/remediation_status.php'; ?> <span class="muted small"><?= (int) $a['completion_pct'] ?>%</span></td>
-          <td><?php include __DIR__ . '/../partials/action_row_form.php'; ?></td>
+          <td><?php include __DIR__ . '/../partials/remediation_status.php'; ?></td>
+          <td><?php include __DIR__ . '/../partials/action_controls.php'; ?></td>
         </tr>
       <?php endforeach; ?>
       </tbody>

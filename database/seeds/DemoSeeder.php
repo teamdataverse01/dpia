@@ -188,10 +188,11 @@ final class DemoSeeder
         $this->control($c, 'Encryption at rest and in transit', 'in_progress', 40, false);
         $this->app->assessments()->calculateResidual($this->u['dev.infosec'], $c);
         $rem = $this->app->remediation();
-        $rem->create($this->u['dev.infosec'], ['risk_entity_id' => $c, 'gap_description' => 'Enable encryption of fingerprint templates in the cloud attendance service.', 'owner_portal_user_id' => 'dev.infosec', 'priority' => 'high', 'target_date' => $this->days(-21)]);
-        $rem->create($this->u['dev.infosec'], ['risk_entity_id' => $c, 'gap_description' => 'Enforce MFA for attendance-system administrators.', 'owner_portal_user_id' => 'dev.infosec', 'priority' => 'medium', 'target_date' => $this->days(+30)]);
-        $done = $rem->create($this->u['dev.infosec'], ['risk_entity_id' => $c, 'gap_description' => 'Publish staff privacy notice for biometric attendance.', 'owner_portal_user_id' => 'dev.privacy_dpo', 'priority' => 'low', 'target_date' => $this->days(-5)]);
-        $rem->update($this->u['dev.infosec'], $done, ['status' => 'completed']);
+        $rem->create($this->u['dev.privacy_dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Encryption at rest and in transit'), 'gap_description' => 'Enable encryption of fingerprint templates in the cloud attendance service.', 'owner_portal_user_id' => 'dev.infosec', 'priority' => 'high', 'target_date' => $this->days(-21)]);
+        $rem->create($this->u['dev.privacy_dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Role-based access control with MFA'), 'gap_description' => 'Enforce MFA for attendance-system administrators.', 'owner_portal_user_id' => 'dev.business_owner', 'priority' => 'medium', 'target_date' => $this->days(+30)]);
+        // This one is closed by the system: recording its control as fixed closes the action automatically.
+        $rem->create($this->u['dev.privacy_dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Privacy notice and lawful-basis record'), 'gap_description' => 'Publish staff privacy notice for biometric attendance.', 'owner_portal_user_id' => 'dev.privacy_dpo', 'priority' => 'low', 'target_date' => $this->days(+10)]);
+        $this->control($c, 'Privacy notice and lawful-basis record', 'implemented', 90, true);
 
         // D. Exam results — Low; negligible residual confirmed → Very Low; approved.
         $d = $this->dpia($req2, 'Exam results publication', $dept['Registry'], [
@@ -262,6 +263,16 @@ final class DemoSeeder
         $id = $this->app->assessments()->create($by, EntityType::ProcessingActivity, ['name' => $name, 'department_id' => $dept] + $profile);
         $this->app->assessments()->saveFactors($by, $id, $factors);
         return $id;
+    }
+
+    private function controlId(string $title): int
+    {
+        foreach ($this->app->controls()->all() as $c) {
+            if ($c['title'] === $title) {
+                return $c['id'];
+            }
+        }
+        throw new RuntimeException("Unknown control {$title}");
     }
 
     /** Record one control by title. */

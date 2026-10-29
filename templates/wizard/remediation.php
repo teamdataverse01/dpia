@@ -15,13 +15,13 @@ $unassigned = $counts['gaps'] - $counts['assigned'];
   <ol class="small">
     <li><strong>Assign</strong> each gap here: who will fix it, how urgent it is (priority) and by when (target date). This is a to-do — it does not change the risk.</li>
     <li>The owner does the work, then presses <strong>Record the fix</strong> to open the control and mark it implemented, give its effectiveness and upload evidence.</li>
-    <li>When the control meets all the criteria the gap disappears, the residual risk is recalculated, and the action shows <strong>Gap fixed — mark as completed</strong>.</li>
+    <li>Once the control meets all the criteria (and is verified where needed), the gap disappears, the residual risk is recalculated and <strong>the action closes by itself</strong>. Nobody has to tick it off.</li>
   </ol>
   <div class="row">
     <span class="tag<?= $counts['gaps'] ? ' tag-bad' : ' tag-ok' ?>"><?= (int) $counts['gaps'] ?> gap<?= $counts['gaps'] === 1 ? '' : 's' ?> open</span>
     <span class="tag"><?= (int) $counts['assigned'] ?> assigned</span>
     <span class="tag<?= $unassigned ? ' tag-bad' : '' ?>"><?= (int) $unassigned ?> not assigned yet</span>
-    <?php if ($counts['fixed']): ?><span class="tag tag-ok"><?= (int) $counts['fixed'] ?> fixed, ready to close</span><?php endif; ?>
+    <?php if ($counts['closed']): ?><span class="tag tag-ok"><?= (int) $counts['closed'] ?> action<?= $counts['closed'] === 1 ? '' : 's' ?> done</span><?php endif; ?>
   </div>
 </div>
 
@@ -102,23 +102,7 @@ $unassigned = $counts['gaps'] - $counts['assigned'];
             <td><?= e(ucfirst($a['priority'])) ?></td>
             <td class="nowrap"><?= fmt_date($a['target_date']) ?></td>
             <td><?php include __DIR__ . '/../partials/remediation_status.php'; ?></td>
-            <td>
-              <?php $canUpdate = $canManage || $a['owner_portal_user_id'] === $currentUser->id; ?>
-              <?php if ($a['gap_fixed']): ?>
-                <p class="small"><span class="tag tag-ok">Gap fixed</span></p>
-                <?php if ($canUpdate): ?>
-                  <form method="post" action="<?= e(url('/remediation/' . (int) $a['id'])) ?>"><?= csrf_field() ?>
-                    <input type="hidden" name="return" value="<?= e($return) ?>"><input type="hidden" name="status" value="completed">
-                    <button class="btn btn-small" type="submit">Mark as completed</button>
-                  </form>
-                <?php endif; ?>
-              <?php elseif (in_array($a['display_status'], ['open', 'in_progress', 'overdue'], true)): ?>
-                <?php if ($a['control_id']): ?><a class="btn btn-small" href="<?= e($fixLink((int) $a['control_id'])) ?>">Record the fix</a><?php endif; ?>
-                <?php if ($canUpdate): ?><details class="small"><summary>Update status</summary><?php include __DIR__ . '/../partials/action_row_form.php'; ?></details><?php endif; ?>
-              <?php else: ?>
-                <span class="muted small">—</span>
-              <?php endif; ?>
-            </td>
+            <td><?php include __DIR__ . '/../partials/action_controls.php'; ?></td>
           </tr>
         <?php endforeach; ?>
         </tbody>

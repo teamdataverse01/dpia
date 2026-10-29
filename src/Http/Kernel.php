@@ -51,6 +51,7 @@ final class Kernel
         $r->get('/risks', [$dash, 'risks']);
         $r->get('/remediation', [$dash, 'remediation']);
         $r->post('/remediation/{id}', [$dash, 'updateAction']);
+        $r->post('/remediation/{id}/remind', [$dash, 'remindOwner']);
         $r->get('/help', [$dash, 'help']);
 
         // intake (stage 1)

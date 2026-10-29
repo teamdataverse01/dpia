@@ -77,9 +77,17 @@ final class DashboardController extends BaseController
             'filters' => $f,
             'summary' => \App\Services\RemediationService::summary($all),
             'rows' => array_map(
-                fn ($a) => $a + ['owner_name' => $this->app->people()->name($a['owner_portal_user_id'])],
+                fn ($a) => $a + [
+                    'owner_name' => $this->app->people()->name($a['owner_portal_user_id']),
+                    // may this user remind / reassign? (judged on the linked record, not on the action)
+                    'can_manage' => $this->app->authz()->can($user, \App\Domain\Permission::ManageRemediation, [
+                        'owner_portal_user_id' => $a['entity_owner'], 'entity_type' => $a['entity_type'],
+                        'department_id' => $a['department_id'], 'vendor_portal_user_id' => null,
+                    ]),
+                ],
                 $this->app->remediation()->list($user, $f),
             ),
+            'people' => $this->app->people()->all(),
             'departments' => $this->app->refs()->departments(),
         ]);
     }
@@ -93,6 +101,17 @@ final class DashboardController extends BaseController
         } catch (ValidationException $ex) {
             $this->flash('error', implode(' ', $ex->fields) ?: $ex->getMessage());
         }
+        $back = (string) $request->input('return', '/remediation');
+        return Response::redirect(url(str_starts_with($back, '/') && !str_starts_with($back, '//') ? $back : '/remediation'));
+    }
+
+    public function remindOwner(Request $request, PortalUser $user): Response
+    {
+        $id = $request->intParam('id');
+        $action = $this->app->remediationRepo()->find($id);
+        $sent = $this->app->remediation()->remind($user, $id);
+        $name = $this->app->people()->name($action['owner_portal_user_id'] ?? null);
+        $this->flash($sent ? 'success' : 'error', $sent ? "Reminder sent to {$name}." : "{$name} has no e-mail address on file, so no reminder could be sent.");
         $back = (string) $request->input('return', '/remediation');
         return Response::redirect(url(str_starts_with($back, '/') && !str_starts_with($back, '//') ? $back : '/remediation'));
     }

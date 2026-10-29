@@ -209,6 +209,7 @@ final class ControlService
                 $this->status->to($user->id, $e, St::ControlsInProgress);
             }
             $this->residual->persist($user->id, $id, $this->configs->active());
+            $this->closeFixedActions($user->id, $id);
             return $this->controls->assessment($id, $controlId);
         });
     }
@@ -287,6 +288,7 @@ final class ControlService
             $this->controls->updateAssessment($id, $controlId, $values);
             $this->audit->record($user->id, 'control_assessments', $id, $verified ? 'evidence_verified' : 'evidence_unverified', ['verified_by' => $a['verified_by'], 'verified_at' => $a['verified_at']], ['risk_entity_id' => $id, 'control_id' => $controlId] + $values);
             $this->residual->persist($user->id, $id, $this->configs->active());
+            $this->closeFixedActions($user->id, $id);
         });
     }
 
@@ -303,6 +305,42 @@ final class ControlService
             throw new NotFoundException('The evidence file is missing from storage.');
         }
         return ['path' => $path, 'name' => $a['evidence_original_name'] ?: 'evidence', 'mime' => $a['evidence_mime'] ?: 'application/octet-stream'];
+    }
+
+    /**
+     * Close open remediation actions whose control now meets every clearance criterion, so nobody has
+     * to tick them off by hand. Recorded in the audit log as done by "system", noting who triggered it.
+     * Must run inside the transaction that changed the control.
+     *
+     * @return int number of actions closed
+     */
+    public function closeFixedActions(string $triggeredBy, int $entityId): int
+    {
+        $met = [];
+        foreach ($this->overview($this->assessments->get($entityId)) as $row) {
+            if ($row['counts_for_clearance'] && $row['unmet'] === []) {
+                $met[(int) $row['control']['id']] = true;
+            }
+        }
+        $closed = 0;
+        $open = $this->db->fetchAll(
+            "SELECT id, control_id, status FROM remediation_actions
+              WHERE risk_entity_id = :e AND control_id IS NOT NULL AND status IN ('open', 'in_progress')",
+            ['e' => $entityId],
+        );
+        foreach ($open as $a) {
+            if (!isset($met[(int) $a['control_id']])) {
+                continue;
+            }
+            $new = ['status' => 'completed', 'completion_pct' => 100, 'completed_at' => $this->clock->now()->format('Y-m-d H:i:s')];
+            $this->db->update('remediation_actions', $new, 'id = :id', ['id' => (int) $a['id']]);
+            $this->audit->record('system', 'remediation_actions', (int) $a['id'], 'auto_completed', ['status' => $a['status']], [
+                'risk_entity_id' => $entityId, 'control_id' => (int) $a['control_id'], 'triggered_by' => $triggeredBy,
+                'reason' => 'The control now meets all clearance criteria.',
+            ] + $new);
+            $closed++;
+        }
+        return $closed;
     }
 
     /** Gaps (unmet recommended controls) that do not yet have an open remediation action. */

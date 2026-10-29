@@ -82,6 +82,57 @@ final class WorkflowTest extends IntegrationTestCase
         });
     }
 
+    private function controlId(string $title): int
+    {
+        return (int) $this->app()->db()->fetchValue('SELECT id FROM controls WHERE title = :t', ['t' => $title]);
+    }
+
+    public function testActionClosesItselfWhenItsControlIsFixedAndVerified(): void
+    {
+        $this->inRollback(function () {
+            $id = (int) $this->entityByName('Campus CCTV with facial recognition')['id'];
+            $cid = $this->controlId('Encryption at rest and in transit');
+            $actionId = $this->app()->remediation()->create($this->user('dev.privacy_dpo'), [
+                'risk_entity_id' => $id, 'control_id' => $cid, 'gap_description' => 'Encrypt the CCTV archive.',
+                'owner_portal_user_id' => 'dev.business_owner', 'priority' => 'high', 'target_date' => '2026-11-30',
+            ]);
+
+            $tmp = tempnam(sys_get_temp_dir(), 'ev');
+            file_put_contents($tmp, "Encryption settings export\n");
+            $this->app()->controlService()->record($this->user('dev.business_owner'), $id, $cid, [
+                'status' => 'implemented', 'effectiveness_pct' => '85', 'expiry_date' => '2027-10-01',
+            ], ['tmp_name' => $tmp, 'name' => 'encryption.txt', 'error' => 0]);
+            self::assertSame('open', $this->app()->remediationRepo()->find($actionId)['status'], 'still needs Reviewer verification');
+
+            $this->app()->controlService()->verify($this->user('dev.reviewer'), $id, $cid);
+            $a = $this->app()->remediationRepo()->find($actionId);
+            self::assertSame('completed', $a['status']);
+            self::assertNotNull($a['completed_at']);
+            $audit = $this->app()->db()->fetchOne("SELECT * FROM audit_log WHERE entity_table = 'remediation_actions' AND entity_id = :id AND action = 'auto_completed'", ['id' => $actionId]);
+            self::assertSame('system', $audit['actor_portal_user_id']);
+            self::assertStringContainsString('"triggered_by":"dev.reviewer"', $audit['new_value']);
+        });
+    }
+
+    public function testRemindOwner(): void
+    {
+        $this->inRollback(function () {
+            $overdue = $this->app()->remediation()->list($this->user('dev.privacy_dpo'), ['status' => 'overdue'])[0];
+            self::assertTrue($this->app()->remediation()->remind($this->user('dev.privacy_dpo'), (int) $overdue['id']));
+            self::assertNotNull($this->app()->db()->fetchOne("SELECT id FROM audit_log WHERE entity_table = 'remediation_actions' AND entity_id = :id AND action = 'reminder_sent'", ['id' => (int) $overdue['id']]));
+
+            try {
+                $this->app()->remediation()->remind($this->user('dev.requestor'), (int) $overdue['id']); // not Ada's record
+                self::fail('only people who manage the record may chase its actions');
+            } catch (ForbiddenException) {
+            }
+
+            $done = $this->app()->remediation()->list($this->user('dev.privacy_dpo'), ['status' => 'completed'])[0];
+            $this->expectException(\App\Support\ConflictException::class);
+            $this->app()->remediation()->remind($this->user('dev.privacy_dpo'), (int) $done['id']);
+        });
+    }
+
     public function testRejectionAllowsRework(): void
     {
         $this->inRollback(function () {

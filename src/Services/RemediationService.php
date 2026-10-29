@@ -25,7 +25,46 @@ final class RemediationService
         private readonly Authorizer $authz,
         private readonly AuditLogger $audit,
         private readonly Clock $clock,
+        private readonly Notifier $notifier,
     ) {
+    }
+
+    /**
+     * Send the action's owner a reminder now (the daily job also reminds owners of overdue actions).
+     * Returns false when the owner has no e-mail address on file.
+     */
+    public function remind(PortalUser $user, int $id): bool
+    {
+        $action = $this->repo->find($id);
+        if ($action === null) {
+            throw new NotFoundException('Remediation action not found.');
+        }
+        $entity = $this->assessments->get((int) $action['risk_entity_id']);
+        if (!$this->authz->can($user, P::ManageRemediation, $entity)) {
+            throw new ForbiddenException();
+        }
+        if (in_array($action['status'], [RemediationStatus::Completed->value, RemediationStatus::Cancelled->value], true)) {
+            throw new \App\Support\ConflictException('This action is already closed.');
+        }
+        $a = $this->decorate($action);
+        $due = substr((string) $action['target_date'], 0, 10);
+        $sent = $this->notifier->toUser(
+            $action['owner_portal_user_id'],
+            ($a['display_status'] === 'overdue' ? 'Overdue: ' : 'Reminder: ') . ($action['control_title'] ?? 'remediation action') . ' — ' . $action['entity_name'],
+            sprintf(
+                "%s has asked for an update on this action for \"%s\":\n\n%s\n\nDue: %s%s\n\nRecord the fix and upload evidence here: %s",
+                $user->displayName,
+                $action['entity_name'],
+                $action['gap_description'],
+                $due,
+                $a['display_status'] === 'overdue' ? ' (' . $a['days_overdue'] . ' days overdue)' : '',
+                $this->notifier->link('/assessments/' . (int) $action['risk_entity_id'] . ($action['control_id'] ? '/controls?control=' . (int) $action['control_id'] . '#control-' . (int) $action['control_id'] : '/remediation')),
+            ),
+        );
+        $this->db->transaction(fn () => $this->audit->record($user->id, 'remediation_actions', $id, 'reminder_sent', null, [
+            'risk_entity_id' => (int) $action['risk_entity_id'], 'to' => $action['owner_portal_user_id'], 'delivered' => $sent,
+        ]));
+        return $sent;
     }
 
     public function list(PortalUser $user, array $filters): array
