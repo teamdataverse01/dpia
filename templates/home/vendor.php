@@ -22,7 +22,11 @@
           <tr>
             <td><?= e($c['title']) ?><div class="muted small"><?= e($c['description']) ?></div></td>
             <td class="small"><?= e($c['expected_evidence'] ?? 'A document showing this is in place.') ?></td>
-            <td><a class="btn btn-small" href="<?= e(url('/assessments/' . (int) $e['id'] . '/controls', ['control' => $cid]) . '#control-' . $cid) ?>">Upload</a></td>
+            <?php $sent = !empty($row['assessment']['evidence_path']); ?>
+            <td>
+              <?php if ($sent): ?><span class="tag">Sent<?= $row['control']['verification_required'] && empty($row['assessment']['verified_at']) ? ', waiting for CU to check' : '' ?></span><?php endif; ?>
+              <a class="btn btn-small<?= $sent ? ' btn-secondary' : '' ?>" href="<?= e(url('/assessments/' . (int) $e['id'] . '/controls', ['control' => $cid]) . '#control-' . $cid) ?>"><?= $sent ? 'Open' : 'Upload' ?></a>
+            </td>
           </tr>
         <?php endforeach; ?>
         </tbody>
