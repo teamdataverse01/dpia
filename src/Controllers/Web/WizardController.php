@@ -56,6 +56,7 @@ final class WizardController extends BaseController
             'editable' => $editable,
             'canEditOwn' => $editable && $authz->can($user, P::EditOwn, $e),
             'canEditControls' => $editable && $authz->can($user, P::EditControls, $e),
+            'canAdvance' => $editable && $authz->canAdvance($user, $e),
             'title' => $e['name'],
         ];
     }
@@ -298,7 +299,7 @@ final class WizardController extends BaseController
         return $this->render('wizard/recommended', $ctx + [
             'byCategory' => $byCat,
             'hasAssessments' => $this->app->controls()->hasAssessments((int) $e['id']),
-            'canStart' => $ctx['canEditOwn'] || $ctx['canEditControls'],
+            'canStart' => $ctx['canAdvance'],
         ]);
     }
 
@@ -399,7 +400,7 @@ final class WizardController extends BaseController
         return $this->render('wizard/residual', $ctx + [
             'explanation' => $this->app->assessments()->residualExplanation($e),
             'canConfirmNegligible' => $this->app->authz()->can($user, P::ConfirmNegligible, $e) && $e['status'] !== St::PendingApproval->value,
-            'canCalculate' => $ctx['canEditOwn'] || $ctx['canEditControls'],
+            'canCalculate' => $ctx['canAdvance'],
         ]);
     }
 
@@ -543,8 +544,10 @@ final class WizardController extends BaseController
             'today' => $today,
             'history' => $this->app->auditRepo()->historyForEntity($id),
             'scores' => $this->app->entities()->scoreHistory($id),
-            'linkedDpias' => $e['entity_type'] === 'vendor' ? $this->app->entities()->dpiasLinkedToVendor($id) : [],
-            'canReassess' => St::from($e['status'])->isDecided() && ($authz->can($user, P::EditOwn, $e) || $authz->can($user, P::EditControls, $e)),
+            'linkedDpias' => $e['entity_type'] === 'vendor'
+                ? array_values(array_filter($this->app->entities()->dpiasLinkedToVendor($id), fn ($d) => $authz->can($user, P::View, $this->app->entities()->find((int) $d['id']))))
+                : [],
+            'canReassess' => St::from($e['status'])->isDecided() && $authz->canAdvance($user, $e),
             'canSaveTemplate' => $e['entity_type'] === 'processing_activity' && St::from($e['status'])->isDecided() && $authz->can($user, P::SaveTemplate),
         ]);
     }

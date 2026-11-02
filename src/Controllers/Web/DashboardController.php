@@ -6,6 +6,8 @@ namespace App\Controllers\Web;
 
 use App\Domain\AssessmentStatus;
 use App\Domain\Factor;
+use App\Domain\Permission;
+use App\Domain\Role;
 use App\Domain\PortalUser;
 use App\Http\Request;
 use App\Http\Response;
@@ -15,19 +17,46 @@ use App\Support\ValidationException;
 /** Dashboard (PRD 11), the filtered risk list behind it, and the remediation tracker. */
 final class DashboardController extends BaseController
 {
+    /** The landing page: each profile sees its own work (DECISIONS D-36). */
     public function dashboard(Request $request, PortalUser $user): Response
+    {
+        $home = $this->app->home();
+        if ($user->hasRole(Role::Admin)) {
+            return $this->board($request, $user, '/dashboard');
+        }
+        if ($user->hasRole(Role::Reviewer)) {
+            return $this->render('home/reviewer', ['title' => 'My review queue', 'evidence' => $home->evidenceToVerify(), 'decisions' => $home->decisionsWaiting($user)]);
+        }
+        if ($user->hasRole(Role::BusinessOwner)) {
+            return $this->render('home/owner', ['title' => 'My work'] + $home->ownerWork($user));
+        }
+        if ($user->hasRole(Role::Vendor)) {
+            return $this->render('home/vendor', ['title' => 'What CU needs from you', 'requests' => $home->vendorRequests($user)]);
+        }
+        return $this->render('home/none', ['title' => 'No role yet']);
+    }
+
+    /** The university-wide picture, for a Reviewer who wants it (the DPO's landing page is this board). */
+    public function overview(Request $request, PortalUser $user): Response
+    {
+        $this->app->authz()->authorize($user, Permission::ViewDashboard);
+        return $this->board($request, $user, '/overview');
+    }
+
+    private function board(Request $request, PortalUser $user, string $boardPath): Response
     {
         $f = DashboardService::filters($request->query);
         $d = $this->app->dashboard();
         return $this->render('dashboard/index', [
             'title' => 'Privacy risk dashboard',
+            'boardPath' => $boardPath,
+            'decisions' => $this->app->home()->decisionsWaiting($user),
             'filters' => $f,
             'departments' => $this->app->refs()->departments(),
             'overview' => $d->overview($user, $f),
             'byDept' => $d->byDepartment($user, $f),
             'rem' => $d->remediation($user, $f),
             'stories' => $d->stories($user, $f),
-            'institutionWide' => $d->scope($user)['institution_wide'],
         ]);
     }
 
@@ -81,7 +110,7 @@ final class DashboardController extends BaseController
                 fn ($a) => $a + [
                     'owner_name' => $this->app->people()->name($a['owner_portal_user_id']),
                     // may this user remind / reassign? (judged on the linked record, not on the action)
-                    'can_manage' => $this->app->authz()->can($user, \App\Domain\Permission::ManageRemediation, [
+                    'can_manage' => $this->app->authz()->can($user, Permission::ManageRemediation, [
                         'owner_portal_user_id' => $a['entity_owner'], 'entity_type' => $a['entity_type'],
                         'department_id' => $a['department_id'], 'vendor_portal_user_id' => null,
                     ]),

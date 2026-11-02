@@ -77,6 +77,10 @@ final class DemoSeeder
         ]);
         $this->app->controlService()->startControls($req, $jamb);
         $this->control($jamb, 'Data Protection Policy', 'in_progress', 50, false);
+        // waiting in the Reviewer's queue: uploaded, not yet verified
+        $this->control($jamb, 'Data Processing Agreement with the recipient', 'implemented', 85, true);
+        $this->control($jamb, 'Encryption at rest and in transit', 'implemented', 80, true);
+        $this->app->remediation()->create($this->u['dev.dpo'], ['risk_entity_id' => $jamb, 'control_id' => $this->controlId('Data Retention Schedule'), 'gap_description' => 'Add JAMB applicant records to the retention schedule.', 'owner_portal_user_id' => 'dev.business_owner', 'priority' => 'medium', 'target_date' => $this->days(+30)]);
 
         $paystack = $this->vendor($req, 'Paystack', $dept['Bursary / Finance'], [
             'legal_name' => 'Paystack Payments Limited',
@@ -154,6 +158,9 @@ final class DemoSeeder
         $this->say(sprintf('DPIA "Processing Student Applications": inherent %s / %s (expected 3.85 / high)', $ea['inherent_score'], $ea['inherent_rating']));
         $this->clear($a, ControlCategory::Technology);
         $this->clear($a, ControlCategory::Process);
+        // Low risk left, so this waits in the Reviewer's queue
+        $this->app->assessments()->calculateResidual($req, $a);
+        $this->app->approvals()->submit($req, $a);
 
         // B. Research survey — no data sharing, Medium → Low with Policy, approved.
         $b = $this->dpia($req2, 'Student wellbeing survey', $dept['Research'], [
@@ -186,7 +193,6 @@ final class DemoSeeder
         $rem = $this->app->remediation();
         $rem->create($this->u['dev.dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Encryption at rest and in transit'), 'gap_description' => 'Enable encryption of fingerprint templates in the cloud attendance service.', 'owner_portal_user_id' => 'dev.business_owner2', 'priority' => 'high', 'target_date' => $this->days(-21)]);
         $rem->create($this->u['dev.dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Role-based access control with MFA'), 'gap_description' => 'Enforce MFA for attendance-system administrators.', 'owner_portal_user_id' => 'dev.business_owner2', 'priority' => 'medium', 'target_date' => $this->days(+30)]);
-        $rem->create($this->u['dev.dpo'], ['risk_entity_id' => $a, 'control_id' => $this->controlId('Data Retention Schedule'), 'gap_description' => 'Add applicant records to the retention schedule.', 'owner_portal_user_id' => 'dev.business_owner', 'priority' => 'medium', 'target_date' => $this->days(+30)]);
         // This one is closed by the system: recording its control as fixed closes the action automatically.
         $rem->create($this->u['dev.dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Privacy notice and lawful-basis record'), 'gap_description' => 'Publish staff privacy notice for biometric attendance.', 'owner_portal_user_id' => 'dev.dpo', 'priority' => 'low', 'target_date' => $this->days(+10)]);
         $this->control($c, 'Privacy notice and lawful-basis record', 'implemented', 90, true);

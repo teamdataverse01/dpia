@@ -22,7 +22,7 @@ $id = (int) $e['id'];
     <?php if ($stored['framework_version'] !== $currentVersion): ?>
       <div class="warn">
         This was scored with scoring framework version <?= (int) $stored['framework_version'] ?>; the current version is <?= (int) $currentVersion ?>.
-        <?php if ($canEditOwn || $canEditControls): ?>
+        <?php if ($canAdvance): ?>
           <form class="inline-form" method="post" action="<?= e(url("/assessments/{$id}/rescore")) ?>"><?= csrf_field() ?><button class="btn btn-small" type="submit">Recalculate with the current framework</button></form>
         <?php endif; ?>
       </div>

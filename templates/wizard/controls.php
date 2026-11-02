@@ -11,14 +11,14 @@ foreach ($rows as $r) {
   <div class="card"><p>Score the inherent risk first.</p></div>
 <?php else: ?>
 <div class="card">
-  <h2><?= term('Control', 'control') ?> assessment</h2>
+  <h2><?= !empty($vendorOnly) ? 'Supply your evidence' : term('Control', 'control') . ' assessment' ?></h2>
   <p>For each safeguard, record whether it is in place, how effective it is, and upload evidence. A control type is <strong>cleared</strong> when every mandatory control in it is implemented, at least <?= (int) $minEffectiveness ?>% effective, has current evidence and — where required — has been verified by a Reviewer.</p>
   <div class="row">
     <?php foreach ($explanation['categories'] as $cat => $c): ?>
       <span class="tag <?= $c['cleared'] ? 'tag-ok' : 'tag-bad' ?>"><?= e(ucfirst($cat)) ?>: <?= $c['cleared'] ? 'cleared' : 'not cleared' ?></span>
     <?php endforeach; ?>
     <span class="spacer"></span>
-    <span class="small"><?= term('Residual risk', 'residual') ?> right now: <?= rating_badge($explanation['residual_rating']) ?></span>
+    <?php if (empty($vendorOnly)): ?><span class="small"><?= term('Residual risk', 'residual') ?> right now: <?= rating_badge($explanation['residual_rating']) ?></span><?php endif; ?>
   </div>
 </div>
 
@@ -118,7 +118,7 @@ foreach ($rows as $r) {
   <?php endforeach; ?>
 <?php endforeach; ?>
 
-<?php if ($canEditControls && $addable !== []): ?>
+<?php if ($canAdvance && $addable !== []): ?>
   <form class="card" method="post" action="<?= e(url("/assessments/{$id}/controls/add")) ?>">
     <?= csrf_field() ?>
     <h2>Add another control</h2>
@@ -134,7 +134,9 @@ foreach ($rows as $r) {
 <?php endif; ?>
 
 <div class="form-actions">
-  <?php if ($editable && ($canEditControls || $canEditOwn)): ?>
+  <?php if (!empty($vendorOnly)): ?>
+    <a class="btn btn-secondary" href="<?= e(url('/dashboard')) ?>">Back to what CU needs from you</a>
+  <?php elseif ($canAdvance): ?>
     <form method="post" action="<?= e(url("/assessments/{$id}/residual")) ?>"><?= csrf_field() ?><button class="btn" type="submit">Calculate residual risk</button></form>
   <?php else: ?>
     <a class="btn" href="<?= e(url("/assessments/{$id}/residual")) ?>">See residual risk</a>

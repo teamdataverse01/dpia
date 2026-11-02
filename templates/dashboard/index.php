@@ -1,5 +1,5 @@
 <?php
-/** @var array $filters @var array $departments @var array $overview @var array $byDept @var array $rem @var array $stories @var bool $institutionWide */
+/** @var array $filters @var array $departments @var array $overview @var array $byDept @var array $rem @var array $stories @var string $boardPath @var array $decisions */
 $basis = $filters['basis'];
 $q = array_filter(['entity_type' => $filters['entity_type'] ?? null, 'department_id' => $filters['department_id'] ?? null, 'from' => $filters['from'] ?? null, 'to' => $filters['to'] ?? null]);
 $listQ = $q + ($basis === 'inherent' ? ['basis' => 'inherent'] : []);
@@ -7,19 +7,38 @@ $counts = [];
 foreach ($overview['ratings'] as $r) {
     $counts[$r['rating']] = $r['count'];
 }
-$action = '/dashboard';
+$action = $boardPath;
 ?>
 <div class="page-head">
   <div>
-    <h1><?= $institutionWide ? 'Privacy risk dashboard' : 'My risks' ?></h1>
-    <p class="muted"><?= $institutionWide ? 'All vendors and DPIAs across Covenant University.' : 'The vendors and DPIAs you own, and the actions assigned to you. The DPO and Reviewers see the university-wide view.' ?></p>
+    <h1>Privacy risk dashboard</h1>
+    <p class="muted">All vendors and DPIAs across Covenant University.</p>
   </div>
   <div class="toggle" role="group" aria-label="Rating basis">
-    <a href="<?= e(url('/dashboard', $q + ['basis' => 'residual'])) ?>"<?= $basis === 'residual' ? ' aria-current="true"' : '' ?>><?= 'Residual' ?> risk</a>
-    <a href="<?= e(url('/dashboard', $q + ['basis' => 'inherent'])) ?>"<?= $basis === 'inherent' ? ' aria-current="true"' : '' ?>>Inherent risk</a>
+    <a href="<?= e(url($boardPath, $q + ['basis' => 'residual'])) ?>"<?= $basis === 'residual' ? ' aria-current="true"' : '' ?>><?= 'Residual' ?> risk</a>
+    <a href="<?= e(url($boardPath, $q + ['basis' => 'inherent'])) ?>"<?= $basis === 'inherent' ? ' aria-current="true"' : '' ?>>Inherent risk</a>
   </div>
 </div>
 <p class="small muted">Showing <?= $basis === 'residual' ? term('residual risk', 'residual') . ' (after safeguards)' : term('inherent risk', 'inherent') . ' (before safeguards)' ?>. “Active” means scored and not rejected.</p>
+
+<?php if ($decisions !== []): ?>
+  <section class="card">
+    <h2>Waiting for your decision (<?= count($decisions) ?>)</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Assessment</th><th>Risk left</th><th>Submitted</th><th></th></tr></thead>
+      <tbody>
+      <?php foreach ($decisions as $d): ?>
+        <tr>
+          <td><?= e($d['name']) ?><div class="muted small"><?= e($d['department_name'] ?? '—') ?></div></td>
+          <td><?= rating_badge($d['residual_rating']) ?></td>
+          <td class="nowrap"><?= fmt_date($d['submitted_at']) ?></td>
+          <td><a class="btn btn-small" href="<?= e(url('/assessments/' . (int) $d['id'] . '/review')) ?>">Review</a></td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table></div>
+  </section>
+<?php endif; ?>
 
 <?php include __DIR__ . '/../partials/dashboard_filters.php'; ?>
 

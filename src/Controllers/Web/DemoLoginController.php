@@ -25,18 +25,18 @@ final class DemoLoginController extends BaseController
     {
         $this->provider();
         $accounts = [
-            ['username' => 'dpo', 'name' => 'Dami Ogun', 'role' => 'DPO / Administrator',
+            ['username' => 'dpo', 'name' => 'Dami Ogun', 'role' => 'DPO / Administrator', 'where' => 'CU staff',
                 'does' => 'Runs privacy across the university. Sees everything, including the audit log. Approves or rejects Medium and High risks, is the only one who can accept a risk for a limited time, and sets up scoring, controls, templates and who has which role.',
-                'try' => 'The university-wide dashboard; approving Microsoft 365; Admin → Scoring configuration (look, don’t save).'],
-            ['username' => 'reviewer', 'name' => 'Efe Ibrahim', 'role' => 'Reviewer',
-                'does' => 'The independent checker. Sees everything, verifies that uploaded evidence is genuine, approves Low-risk assessments, and confirms when a Low risk is small enough to be Very Low.',
-                'try' => 'Verifying a piece of evidence (step 6).'],
-            ['username' => 'owner', 'name' => 'Bola Adeyemi', 'role' => 'Business Owner',
-                'does' => 'Runs the activity or the vendor relationship at CU. Starts the vendor assessment or DPIA, answers the risk questions, records which safeguards are in place with evidence, assigns the fixes and submits for approval. Sees only their own records.',
-                'try' => 'Creating a DPIA from a template; the “My risks” page (6 records, not all 10).'],
-            ['username' => 'vendor', 'name' => 'JAMB contact', 'role' => 'Vendor',
-                'does' => 'A contact at an outside company. Sees only their own company’s vendor record and can supply its evidence.',
-                'try' => 'That only JAMB is visible.'],
+                'try' => 'The dashboard, starting with “Waiting for your decision”.'],
+            ['username' => 'reviewer', 'name' => 'Efe Ibrahim', 'role' => 'Reviewer', 'where' => 'CU staff',
+                'does' => 'The independent checker. Verifies that uploaded evidence is genuine, approves Low-risk assessments, and confirms when a Low risk is small enough to be Very Low.',
+                'try' => 'My queue: evidence to check and assessments to approve.'],
+            ['username' => 'owner', 'name' => 'Bola Adeyemi', 'role' => 'CU Activity Owner', 'where' => 'CU staff',
+                'does' => 'The CU staff member responsible for a data activity or a vendor relationship, such as the Head of Admissions. Starts the DPIA or vendor assessment, answers the risk questions, records safeguards with evidence, assigns fixes and submits for approval. Sees only their own records.',
+                'try' => 'My work: each record with its next step.'],
+            ['username' => 'vendor', 'name' => 'JAMB contact', 'role' => 'Vendor', 'where' => 'Outside company',
+                'does' => 'A contact at an outside company that handles CU data. Sees only what CU needs from their company and uploads the proof. Cannot see CU’s scores, approvals or anything else.',
+                'try' => 'What CU needs: the list of documents to upload.'],
         ];
         $this->app->view()->share('flash', []);
         return $this->render('auth/login', [

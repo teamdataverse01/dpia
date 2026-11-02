@@ -24,7 +24,7 @@
     <ul class="accounts">
       <?php foreach ($accounts as $a): ?>
         <li>
-          <div class="accounts-head"><code><?= e($a['username']) ?></code> <strong><?= e($a['role']) ?></strong> <span class="muted">· <?= e($a['name']) ?></span></div>
+          <div class="accounts-head"><code><?= e($a['username']) ?></code> <strong><?= e($a['role']) ?></strong> <span class="tag"><?= e($a['where']) ?></span> <span class="muted">· <?= e($a['name']) ?></span></div>
           <p><?= e($a['does']) ?></p>
           <p class="muted small"><strong>Try:</strong> <?= e($a['try']) ?></p>
         </li>

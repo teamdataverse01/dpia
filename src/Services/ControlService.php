@@ -91,7 +91,7 @@ final class ControlService
     private function assertCanEdit(PortalUser $user, array $e): void
     {
         if (!$this->authz->can($user, P::EditControls, $e)) {
-            throw new ForbiddenException('Only the Business Owner, Reviewer or DPO can record controls on this record.');
+            throw new ForbiddenException('Only the CU Activity Owner, Reviewer or DPO can record controls on this record.');
         }
     }
 
@@ -99,7 +99,7 @@ final class ControlService
     public function startControls(PortalUser $user, int $id): int
     {
         $e = $this->assessments->get($id);
-        if (!$this->authz->can($user, P::EditOwn, $e) && !$this->authz->can($user, P::EditControls, $e)) {
+        if (!$this->authz->canAdvance($user, $e)) {
             throw new ForbiddenException();
         }
         StatusTransitioner::assertEditable($e);

@@ -24,7 +24,7 @@ final class Authorizer
      */
     private const MATRIX = [
         'create' => [R::BusinessOwner, R::Admin],
-        'edit_own' => [R::BusinessOwner, R::Vendor, R::Admin],
+        'edit_own' => [R::BusinessOwner, R::Admin],
         'edit_controls' => [R::Vendor, R::BusinessOwner, R::Reviewer, R::Admin],
         'approve' => [R::Admin],
         'admin_config' => [R::Admin],
@@ -88,13 +88,22 @@ final class Authorizer
         if ($resource === null) {
             return false;
         }
-        if ($user->hasRole(R::BusinessOwner) && ($resource['owner_portal_user_id'] ?? null) === $user->id) {
-            return true;
-        }
-        // Vendor role: only its own vendor record (PRD 5 notes).
-        return $user->hasRole(R::Vendor)
+        return $user->hasRole(R::BusinessOwner) && ($resource['owner_portal_user_id'] ?? null) === $user->id;
+    }
+
+    /** A vendor supplies evidence on its own record and nothing else: it does not score itself (DECISIONS D-36). */
+    private function vendorOnOwnRecord(PortalUser $user, ?array $resource): bool
+    {
+        return $resource !== null
+            && $user->hasRole(R::Vendor)
             && ($resource['entity_type'] ?? null) === 'vendor'
             && ($resource['vendor_portal_user_id'] ?? null) === $user->id;
+    }
+
+    /** May move this record through the workflow (score it, start controls, confirm the residual, reassess). */
+    public function canAdvance(PortalUser $user, array $resource): bool
+    {
+        return $this->can($user, P::ManageRemediation, $resource);
     }
 
     private function editControls(PortalUser $user, ?array $resource): bool
@@ -102,7 +111,7 @@ final class Authorizer
         return $user->hasRole(R::Reviewer)
             || $this->inBusinessOwnerScope($user, $resource)
             || $this->isAssigned($user, $resource)
-            || $this->editOwn($user, $resource);
+            || $this->vendorOnOwnRecord($user, $resource);
     }
 
     private function view(PortalUser $user, ?array $resource): bool

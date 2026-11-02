@@ -241,6 +241,13 @@ final class App
         ));
     }
 
+    public function home(): Services\HomeService
+    {
+        return $this->once(Services\HomeService::class, fn () => new Services\HomeService(
+            $this->entities(), $this->dashboardRepo(), $this->approvals(), $this->remediation(), $this->controlService(),
+        ));
+    }
+
     public function jobs(): Services\JobService
     {
         return $this->once(Services\JobService::class, fn () => new Services\JobService(

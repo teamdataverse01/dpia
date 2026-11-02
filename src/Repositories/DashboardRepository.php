@@ -187,6 +187,22 @@ final class DashboardRepository
         );
     }
 
+    /** Uploaded evidence that needs a Reviewer's check, on records that can still change. */
+    public function evidenceToVerify(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT e.id AS entity_id, e.name AS entity_name, d.name AS department_name,
+                    c.id AS control_id, c.title, ca.evidence_original_name
+               FROM control_assessments ca
+               JOIN controls c ON c.id = ca.control_id
+               JOIN risk_entities e ON e.id = ca.risk_entity_id
+               LEFT JOIN departments d ON d.id = e.department_id
+              WHERE ca.evidence_path IS NOT NULL AND ca.verified_at IS NULL AND c.verification_required = TRUE
+                AND e.status IN ('scored', 'controls_in_progress', 'residual_calculated', 'rejected', 'reassessment_due')
+              ORDER BY ca.updated_at, ca.id",
+        );
+    }
+
     /** @return list<array{snapshot_date:string,high:int,total:int}> */
     public function snapshotSeries(array $f): array
     {

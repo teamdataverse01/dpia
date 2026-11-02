@@ -146,6 +146,57 @@ final class HttpTest extends IntegrationTestCase
         self::assertStringContainsString('11 records · 10 scored · 1 not scored yet (draft)', $risks);
     }
 
+    public function testEachProfileLandsOnItsOwnPage(): void
+    {
+        $dpo = $this->call('GET', '/dashboard', 'dev.dpo')->body;
+        self::assertStringContainsString('<h1>Privacy risk dashboard</h1>', $dpo);
+        self::assertStringContainsString('Waiting for your decision', $dpo);
+        self::assertStringContainsString('Microsoft 365', $dpo, 'Medium risk: the DPO decides');
+
+        $reviewer = $this->call('GET', '/dashboard', 'dev.reviewer')->body;
+        self::assertStringContainsString('<h1>My review queue</h1>', $reviewer);
+        self::assertStringContainsString('Processing Student Applications', $reviewer, 'Low risk: the Reviewer decides');
+        self::assertStringNotContainsString('Microsoft 365', $reviewer);
+        self::assertStringContainsString('Data Processing Agreement', $reviewer, 'evidence waiting to be checked');
+        self::assertSame(200, $this->call('GET', '/overview', 'dev.reviewer')->status);
+
+        $owner = $this->call('GET', '/dashboard', 'dev.business_owner')->body;
+        self::assertStringContainsString('<h1>My work</h1>', $owner);
+        self::assertStringContainsString('Submit for approval', $this->call('GET', '/dashboard', 'dev.business_owner2')->body);
+        self::assertStringNotContainsString('Turnitin', $owner);
+        self::assertSame(403, $this->call('GET', '/overview', 'dev.business_owner')->status);
+
+        $vendor = $this->call('GET', '/dashboard', 'dev.vendor')->body;
+        self::assertStringContainsString('What CU needs from you', $vendor);
+        self::assertStringContainsString('JAMB', $vendor);
+        self::assertStringNotContainsString('Paystack', $vendor);
+        self::assertStringNotContainsString('badge-', $vendor, 'a vendor is not shown risk ratings');
+    }
+
+    public function testVendorCannotSeeCuPagesOrScoreItself(): void
+    {
+        $jamb = (int) $this->entityByName('JAMB (Joint Admissions and Matriculation Board)')['id'];
+        foreach (['factors', 'inherent', 'residual', 'review', 'monitoring'] as $step) {
+            $r = $this->call('GET', "/assessments/{$jamb}/{$step}", 'dev.vendor');
+            self::assertSame(303, $r->status, $step);
+            self::assertStringEndsWith("/assessments/{$jamb}/controls", $r->headers['Location']);
+        }
+        self::assertSame(200, $this->call('GET', "/assessments/{$jamb}/controls", 'dev.vendor')->status);
+        self::assertSame(303, $this->call('GET', '/risks', 'dev.vendor')->status);
+        self::assertSame(403, $this->call('PUT', "/api/v1/risk-entities/{$jamb}/factors", 'dev.vendor', [])->status);
+        self::assertSame(403, $this->call('POST', "/api/v1/risk-entities/{$jamb}/score", 'dev.vendor')->status);
+        self::assertSame(403, $this->call('POST', "/api/v1/risk-entities/{$jamb}/submit", 'dev.vendor')->status);
+    }
+
+    public function testMonitoringDoesNotLinkToRecordsTheUserCannotOpen(): void
+    {
+        $m365 = (int) $this->entityByName('Microsoft 365')['id'];
+        $biometric = (int) $this->entityByName('Staff biometric attendance')['id']; // Tunde's, uses Bola's vendor
+        $body = $this->call('GET', "/assessments/{$m365}/monitoring", 'dev.business_owner')->body;
+        self::assertStringNotContainsString('/assessments/' . $biometric . '"', $body);
+        self::assertStringContainsString('/assessments/' . $biometric . '"', $this->call('GET', "/assessments/{$m365}/monitoring", 'dev.dpo')->body);
+    }
+
     public function testOutputIsEscapedInHtml(): void
     {
         $this->inRollback(function () {

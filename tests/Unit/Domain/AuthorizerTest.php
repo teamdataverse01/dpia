@@ -47,7 +47,7 @@ final class AuthorizerTest extends TestCase
         yield 'DPO / Administrator' => [R::Admin, [true, true, true, true, true, true]];
         yield 'Reviewer' => [R::Reviewer, [false, false, true, false, false, false]];
         yield 'Business Owner' => [R::BusinessOwner, [true, true, true, false, false, false]];
-        yield 'Vendor' => [R::Vendor, [false, true, true, false, false, false]];
+        yield 'Vendor' => [R::Vendor, [false, false, true, false, false, false]]; // supplies evidence only (D-36)
     }
 
     /** @param array{bool,bool,bool,bool,bool,bool} $expected */

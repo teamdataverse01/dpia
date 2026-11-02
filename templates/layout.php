@@ -30,20 +30,25 @@ $cur = fn (string $prefix) => str_starts_with($rel, $prefix) ? ' aria-current="p
     <?php if ($user): ?>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="<?= e(url('/dashboard')) ?>"<?= $cur('/dashboard') ?>>Dashboard</a></li>
+        <?php
+        $isAdmin = $authz->can($user, P::AdminConfig);
+        $homeLabel = $isAdmin ? 'Dashboard' : (!empty($vendorOnly) ? 'What CU needs' : ($authz->can($user, P::ViewDashboard) ? 'My queue' : 'My work'));
+        ?>
+        <li><a href="<?= e(url('/dashboard')) ?>"<?= $cur('/dashboard') ?>><?= e($homeLabel) ?></a></li>
+        <?php if (!$isAdmin && $authz->can($user, P::ViewDashboard)): ?>
+        <li><a href="<?= e(url('/overview')) ?>"<?= $cur('/overview') ?>>University overview</a></li>
+        <?php endif; ?>
+        <?php if (empty($vendorOnly)): ?>
         <li><a href="<?= e(url('/risks')) ?>"<?= $cur('/risks') ?>>Risks</a></li>
         <?php if ($authz->can($user, P::Create)): ?>
         <li><a href="<?= e(url('/vendors/new')) ?>"<?= $cur('/vendors/new') ?>>New vendor assessment</a></li>
         <li><a href="<?= e(url('/dpias/new')) ?>"<?= $cur('/dpias/new') ?>>New DPIA</a></li>
-        <?php endif; ?>
-        <li><a href="<?= e(url('/remediation')) ?>"<?= $cur('/remediation') ?>>Remediation</a></li>
-        <?php if ($authz->can($user, P::Create) || $authz->can($user, P::SaveTemplate) || $authz->can($user, P::ReadAll)): ?>
         <li><a href="<?= e(url('/templates')) ?>"<?= $cur('/templates') ?>>Templates</a></li>
         <?php endif; ?>
-        <?php if ($authz->can($user, P::AdminConfig)): ?>
-        <li><a href="<?= e(url('/admin/config')) ?>"<?= $cur('/admin') ?>>Admin</a></li>
+        <li><a href="<?= e(url('/remediation')) ?>"<?= $cur('/remediation') ?>>Remediation</a></li>
         <?php endif; ?>
-        <?php if ($authz->can($user, P::ReadAll)): ?>
+        <?php if ($isAdmin): ?>
+        <li><a href="<?= e(url('/admin/config')) ?>"<?= $cur('/admin') ?>>Admin</a></li>
         <li><a href="<?= e(url('/audit')) ?>"<?= $cur('/audit') ?>>Audit log</a></li>
         <?php endif; ?>
         <li><a href="<?= e(url('/help')) ?>"<?= $cur('/help') ?>>Help</a></li>

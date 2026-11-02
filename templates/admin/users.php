@@ -1,7 +1,7 @@
 <?php /** @var array $rows @var array $roles @var array $departments @var array $errors @var array $old */ ?>
 <h1>User roles</h1>
 <?php include __DIR__ . '/_nav.php'; ?>
-<p class="note">People sign in through the CU portal. Here you map a portal user ID to this module's roles. A Business Owner sees the records they own or have been assigned a fix on; tying them to a department adds that department's records.</p>
+<p class="note">People sign in through the CU portal. Here you map a portal user ID to this module's roles. A CU Activity Owner sees the records they own or have been assigned a fix on; tying them to a department adds that department's records.</p>
 <form class="card" method="post" action="<?= e(url('/admin/users')) ?>" novalidate>
   <?= csrf_field() ?>
   <h2>Add a role</h2>

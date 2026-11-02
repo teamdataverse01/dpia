@@ -8,6 +8,7 @@ use App\App;
 use App\Controllers\Api;
 use App\Controllers\Web;
 use App\Domain\PortalUser;
+use App\Domain\Role;
 use App\Infrastructure\DemoAuthProvider;
 use App\Infrastructure\DevAuthProvider;
 use App\Support\ConflictException;
@@ -48,6 +49,7 @@ final class Kernel
 
         $r->get('/', fn () => Response::redirect(url('/dashboard')));
         $r->get('/dashboard', [$dash, 'dashboard']);
+        $r->get('/overview', [$dash, 'overview']);
         $r->get('/risks', [$dash, 'risks']);
         $r->get('/remediation', [$dash, 'remediation']);
         $r->post('/remediation/{id}', [$dash, 'updateAction']);
@@ -139,6 +141,10 @@ final class Kernel
                 if ($user instanceof Response) {
                     return $user;
                 }
+                $vendorPage = self::vendorRedirect($user, $request);
+                if ($vendorPage !== null) {
+                    return Response::redirect(url($vendorPage));
+                }
             }
             if (!Csrf::valid($request)) {
                 return $request->isApi()
@@ -183,8 +189,24 @@ final class Kernel
         $view->share('authz', $this->app->authz());
         $view->share('isDevAuth', $this->app->auth() instanceof DevAuthProvider);
         $view->share('isDemoAuth', $this->app->auth() instanceof DemoAuthProvider);
+        $view->share('vendorOnly', $user->roles === [Role::Vendor]);
         $view->share('flash', self::takeFlash());
         return $user;
+    }
+
+    /**
+     * A vendor only ever needs its evidence list and the upload screen (DECISIONS D-36); CU's scoring,
+     * approvals and internal pages are not for outside companies.
+     */
+    private static function vendorRedirect(PortalUser $user, Request $request): ?string
+    {
+        if ($user->roles !== [Role::Vendor]) {
+            return null;
+        }
+        if (preg_match('#^/assessments/(\d+)(/(subject|factors|transfers|inherent|rescore|recommended|residual|negligible|remediation|review|submit|decide|monitoring|reassess|save-template))?$#', $request->path, $m)) {
+            return '/assessments/' . $m[1] . '/controls';
+        }
+        return in_array($request->path, ['/risks', '/remediation', '/templates'], true) ? '/dashboard' : null;
     }
 
     public static function flash(string $type, string $message): void

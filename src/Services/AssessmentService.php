@@ -255,7 +255,7 @@ final class AssessmentService
     public function score(PortalUser $user, int $id): array
     {
         $e = $this->get($id);
-        if (!$this->authz->can($user, P::EditOwn, $e) && !$this->authz->can($user, P::EditControls, $e)) {
+        if (!$this->authz->canAdvance($user, $e)) {
             throw new \App\Support\ForbiddenException();
         }
         StatusTransitioner::assertEditable($e);
@@ -347,7 +347,7 @@ final class AssessmentService
     public function calculateResidual(PortalUser $user, int $id): ResidualRiskResult
     {
         $e = $this->get($id);
-        if (!$this->authz->can($user, P::EditOwn, $e) && !$this->authz->can($user, P::EditControls, $e)) {
+        if (!$this->authz->canAdvance($user, $e)) {
             throw new \App\Support\ForbiddenException();
         }
         StatusTransitioner::assertEditable($e);
@@ -425,7 +425,7 @@ final class AssessmentService
     public function startReassessment(PortalUser $user, int $id): void
     {
         $e = $this->get($id);
-        if (!$this->authz->can($user, P::EditOwn, $e) && !$this->authz->can($user, P::EditControls, $e)) {
+        if (!$this->authz->canAdvance($user, $e)) {
             throw new \App\Support\ForbiddenException();
         }
         $s = St::from($e['status']);
