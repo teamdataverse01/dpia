@@ -32,24 +32,24 @@ final class WorkflowTest extends IntegrationTestCase
             self::assertSame('pending_approval', $m365['status']);
             try {
                 $this->app()->approvals()->decide($this->user('dev.reviewer'), (int) $m365['id'], 'approved', 'Looks fine to me.', null);
-                self::fail('reviewer is not an approver for Medium');
+                self::fail('a Reviewer only approves Low-risk items');
             } catch (ForbiddenException) {
             }
-            $out = $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), (int) $m365['id'], 'approved', 'Controls planned and acceptable.', null);
+            $out = $this->app()->approvals()->decide($this->user('dev.dpo'), (int) $m365['id'], 'approved', 'Controls planned and acceptable.', null);
             self::assertSame('approved', $out);
             $after = $this->app()->entities()->find((int) $m365['id']);
             self::assertSame('2027-10-18', $after['next_review_date']); // Medium → 12 months
         });
     }
 
-    public function testHighIsApprovedByThePrivacyTeamNotTheReviewer(): void
+    public function testHighIsApprovedByTheDpoNotTheReviewer(): void
     {
         $this->inRollback(function () {
             $cctv = $this->entityByName('Campus CCTV with facial recognition'); // High, controls in progress
             $id = (int) $cctv['id'];
-            $this->app()->assessments()->calculateResidual($this->user('dev.requestor'), $id);
-            $this->app()->approvals()->submit($this->user('dev.requestor'), $id);
-            self::assertSame([Role::PrivacyDpo], $this->app()->approvals()->round($this->app()->entities()->find($id))['required']);
+            $this->app()->assessments()->calculateResidual($this->user('dev.business_owner'), $id);
+            $this->app()->approvals()->submit($this->user('dev.business_owner'), $id);
+            self::assertSame([Role::Admin], $this->app()->approvals()->round($this->app()->entities()->find($id))['required']);
 
             try {
                 $this->app()->approvals()->decide($this->user('dev.reviewer'), $id, 'approved', 'Looks fine.', null);
@@ -57,12 +57,12 @@ final class WorkflowTest extends IntegrationTestCase
             } catch (ForbiddenException) {
             }
 
-            self::assertSame('approved', $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), $id, 'approved', 'Agreed, with the plan.', null));
+            self::assertSame('approved', $this->app()->approvals()->decide($this->user('dev.dpo'), $id, 'approved', 'Agreed, with the plan.', null));
             self::assertSame('2027-04-18', $this->app()->entities()->find($id)['next_review_date']); // High → 6 months
         });
     }
 
-    public function testRiskAcceptanceIsTimeBoxedAndOnlyForThePrivacyTeam(): void
+    public function testRiskAcceptanceIsTimeBoxedAndOnlyForTheDpo(): void
     {
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Microsoft 365')['id'];
@@ -72,12 +72,12 @@ final class WorkflowTest extends IntegrationTestCase
             } catch (ForbiddenException) {
             }
             try {
-                $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), $id, 'risk_accepted', 'Accept it.', null);
+                $this->app()->approvals()->decide($this->user('dev.dpo'), $id, 'risk_accepted', 'Accept it.', null);
                 self::fail('end date required');
             } catch (ValidationException $e) {
                 self::assertArrayHasKey('accepted_until', $e->fields);
             }
-            self::assertSame('risk_accepted', $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), $id, 'risk_accepted', 'Accept until migration.', '2027-01-31'));
+            self::assertSame('risk_accepted', $this->app()->approvals()->decide($this->user('dev.dpo'), $id, 'risk_accepted', 'Accept until migration.', '2027-01-31'));
             self::assertSame('2027-01-31', $this->app()->entities()->find($id)['next_review_date']);
         });
     }
@@ -92,7 +92,7 @@ final class WorkflowTest extends IntegrationTestCase
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Campus CCTV with facial recognition')['id'];
             $cid = $this->controlId('Encryption at rest and in transit');
-            $actionId = $this->app()->remediation()->create($this->user('dev.privacy_dpo'), [
+            $actionId = $this->app()->remediation()->create($this->user('dev.dpo'), [
                 'risk_entity_id' => $id, 'control_id' => $cid, 'gap_description' => 'Encrypt the CCTV archive.',
                 'owner_portal_user_id' => 'dev.business_owner', 'priority' => 'high', 'target_date' => '2026-11-30',
             ]);
@@ -114,22 +114,51 @@ final class WorkflowTest extends IntegrationTestCase
         });
     }
 
+    public function testAssignedBusinessOwnerCanOpenTheRecordAndRecordTheFixOnly(): void
+    {
+        $this->inRollback(function () {
+            $bola = $this->user('dev.business_owner');
+            $biometric = $this->entityByName('Staff biometric attendance'); // Tunde's record
+            $id = (int) $biometric['id'];
+            $cid = $this->controlId('Audit logging / DLP');
+            try {
+                $this->app()->assessments()->getForUser($bola, $id);
+                self::fail('not hers yet');
+            } catch (\App\Support\NotFoundException) {
+            }
+
+            $this->app()->remediation()->create($this->user('dev.dpo'), [
+                'risk_entity_id' => $id, 'control_id' => $cid, 'gap_description' => 'Turn on audit logging.',
+                'owner_portal_user_id' => 'dev.business_owner', 'priority' => 'high', 'target_date' => '2026-11-30',
+            ]);
+            self::assertSame($id, (int) $this->app()->assessments()->getForUser($bola, $id)['id'], 'can open it');
+            $saved = $this->app()->controlService()->record($bola, $id, $cid, ['status' => 'in_progress']);
+            self::assertSame('in_progress', $saved['status'], 'can record the fix');
+
+            try {
+                $this->app()->assessments()->saveFactors($bola, $id, $this->app()->entities()->factorInputs($id));
+                self::fail('being assigned a fix does not make her the owner');
+            } catch (ForbiddenException) {
+            }
+        });
+    }
+
     public function testRemindOwner(): void
     {
         $this->inRollback(function () {
-            $overdue = $this->app()->remediation()->list($this->user('dev.privacy_dpo'), ['status' => 'overdue'])[0];
-            self::assertTrue($this->app()->remediation()->remind($this->user('dev.privacy_dpo'), (int) $overdue['id']));
+            $overdue = $this->app()->remediation()->list($this->user('dev.dpo'), ['status' => 'overdue'])[0];
+            self::assertTrue($this->app()->remediation()->remind($this->user('dev.dpo'), (int) $overdue['id']));
             self::assertNotNull($this->app()->db()->fetchOne("SELECT id FROM audit_log WHERE entity_table = 'remediation_actions' AND entity_id = :id AND action = 'reminder_sent'", ['id' => (int) $overdue['id']]));
 
             try {
-                $this->app()->remediation()->remind($this->user('dev.requestor'), (int) $overdue['id']); // not Ada's record
+                $this->app()->remediation()->remind($this->user('dev.business_owner'), (int) $overdue['id']); // not Bola's record
                 self::fail('only people who manage the record may chase its actions');
             } catch (ForbiddenException) {
             }
 
-            $done = $this->app()->remediation()->list($this->user('dev.privacy_dpo'), ['status' => 'completed'])[0];
+            $done = $this->app()->remediation()->list($this->user('dev.dpo'), ['status' => 'completed'])[0];
             $this->expectException(\App\Support\ConflictException::class);
-            $this->app()->remediation()->remind($this->user('dev.privacy_dpo'), (int) $done['id']);
+            $this->app()->remediation()->remind($this->user('dev.dpo'), (int) $done['id']);
         });
     }
 
@@ -137,10 +166,10 @@ final class WorkflowTest extends IntegrationTestCase
     {
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Microsoft 365')['id'];
-            $this->app()->approvals()->decide($this->user('dev.privacy_dpo'), $id, 'rejected', 'Need a DPA first.', null);
+            $this->app()->approvals()->decide($this->user('dev.dpo'), $id, 'rejected', 'Need a DPA first.', null);
             self::assertSame('rejected', $this->app()->entities()->find($id)['status']);
             $f = $this->app()->entities()->factorInputs($id);
-            $this->app()->assessments()->saveFactors($this->user('dev.requestor'), $id, $f);
+            $this->app()->assessments()->saveFactors($this->user('dev.business_owner'), $id, $f);
             self::assertSame('scored', $this->app()->entities()->find($id)['status']);
         });
     }
@@ -149,7 +178,7 @@ final class WorkflowTest extends IntegrationTestCase
     {
         $id = (int) $this->entityByName('Microsoft 365')['id'];
         $this->expectException(ConflictException::class);
-        $this->app()->assessments()->saveFactors($this->user('dev.requestor'), $id, $this->app()->entities()->factorInputs($id));
+        $this->app()->assessments()->saveFactors($this->user('dev.business_owner'), $id, $this->app()->entities()->factorInputs($id));
     }
 
     public function testVeryLowOnlyFromComputedLow(): void
@@ -173,7 +202,7 @@ final class WorkflowTest extends IntegrationTestCase
             self::assertSame('reassessment_due', $this->app()->entities()->find($id)['status']);
             self::assertGreaterThan(0, (int) $this->app()->db()->fetchValue("SELECT COUNT(*) FROM risk_snapshots WHERE snapshot_date = '2026-10-18'"));
 
-            $this->app()->assessments()->startReassessment($this->user('dev.requestor2'), $id); // the survey's owner
+            $this->app()->assessments()->startReassessment($this->user('dev.business_owner2'), $id); // the survey's owner
             self::assertSame('scored', $this->app()->entities()->find($id)['status']);
         });
     }
@@ -183,12 +212,12 @@ final class WorkflowTest extends IntegrationTestCase
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Turnitin')['id'];
             $before = (int) $this->app()->db()->fetchValue('SELECT COUNT(*) FROM audit_log');
-            $this->app()->assessments()->calculateResidual($this->user('dev.infosec'), $id);
+            $this->app()->assessments()->calculateResidual($this->user('dev.reviewer'), $id);
             $rows = $this->app()->db()->fetchAll('SELECT * FROM audit_log ORDER BY id DESC LIMIT 5');
             self::assertGreaterThan($before, (int) $this->app()->db()->fetchValue('SELECT COUNT(*) FROM audit_log'));
             $actions = array_column($rows, 'action');
             self::assertContains('status_change', $actions);
-            self::assertSame('dev.infosec', $rows[0]['actor_portal_user_id']);
+            self::assertSame('dev.reviewer', $rows[0]['actor_portal_user_id']);
         });
     }
 
@@ -211,27 +240,27 @@ final class WorkflowTest extends IntegrationTestCase
             $bad = ScoringConfig::defaults();
             $bad['weights']['data_volume'] = 20;
             try {
-                $this->app()->admin()->saveConfig($this->user('dev.admin'), $bad, null);
+                $this->app()->admin()->saveConfig($this->user('dev.dpo'), $bad, null);
                 self::fail('weights totalling 105 must be rejected');
             } catch (ValidationException $e) {
                 self::assertArrayHasKey('weights', $e->fields);
             }
             try {
-                $this->app()->admin()->saveConfig($this->user('dev.privacy_dpo'), ScoringConfig::defaults(), null);
-                self::fail('only admins change config');
+                $this->app()->admin()->saveConfig($this->user('dev.reviewer'), ScoringConfig::defaults(), null);
+                self::fail('only the DPO / Administrator changes config');
             } catch (ForbiddenException) {
             }
 
             $good = ScoringConfig::defaults();
             $good['weights']['data_volume'] = 0;
             $good['weights']['cross_border_transfer'] = 30;
-            $v = $this->app()->admin()->saveConfig($this->user('dev.admin'), $good, 'move weight');
+            $v = $this->app()->admin()->saveConfig($this->user('dev.dpo'), $good, 'move weight');
             self::assertSame(2, $v);
             self::assertSame(1, (int) $this->app()->db()->fetchValue('SELECT COUNT(*) FROM scoring_config WHERE active = TRUE'));
 
             $id = (int) $this->entityByName('Fee payment processing')['id'];
             self::assertSame(1, (int) $this->app()->entities()->find($id)['scoring_framework_version'], 'keeps its version until rescored');
-            $this->app()->assessments()->score($this->user('dev.requestor'), $id);
+            $this->app()->assessments()->score($this->user('dev.business_owner'), $id);
             self::assertSame(2, (int) $this->app()->entities()->find($id)['scoring_framework_version']);
         });
     }
@@ -245,7 +274,7 @@ final class WorkflowTest extends IntegrationTestCase
             file_put_contents($tmp, '<?php echo "x";');
             foreach (['shell.php' => 'File type not allowed.', 'fake.pdf' => 'File content does not match its type.'] as $name => $msg) {
                 try {
-                    $this->app()->controlService()->record($this->user('dev.infosec'), (int) $e['id'], $cid, [], ['tmp_name' => $tmp, 'name' => $name, 'error' => 0]);
+                    $this->app()->controlService()->record($this->user('dev.business_owner'), (int) $e['id'], $cid, [], ['tmp_name' => $tmp, 'name' => $name, 'error' => 0]);
                     self::fail("{$name} must be rejected");
                 } catch (ValidationException $ex) {
                     self::assertSame($msg, $ex->fields['evidence']);

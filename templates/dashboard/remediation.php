@@ -8,7 +8,7 @@ $return = '/' . ltrim(substr($return, strlen(url(''))), '/');
     <h1><?= $institutionWide ? 'Remediation tracker' : 'Remediation on my records' ?></h1>
     <p class="muted"><?= $institutionWide
         ? 'Every fix still outstanding across the university, and who owns it. Owners record their fixes; an action closes by itself once its control is fixed and verified. Use this page to spot overdue work and chase it.'
-        : 'The fixes on the records you own, and any actions assigned to you. Assign each open gap to the person who will fix it; an action closes by itself once its control is fixed and verified. The Privacy Team sees this for the whole university.' ?></p>
+        : 'The fixes on the records you own, and any actions assigned to you. Assign each open gap to the person who will fix it; an action closes by itself once its control is fixed and verified. The DPO and Reviewers see this for the whole university.' ?></p>
   </div>
 </div>
 <div class="tiles">

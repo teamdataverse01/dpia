@@ -43,7 +43,7 @@ final class HttpTest extends IntegrationTestCase
 
     public function testCsrfIsRequiredForStateChanges(): void
     {
-        $r = $this->call('POST', '/api/v1/risk-entities', 'dev.requestor', ['entity_type' => 'vendor'], false);
+        $r = $this->call('POST', '/api/v1/risk-entities', 'dev.business_owner', ['entity_type' => 'vendor'], false);
         self::assertSame(419, $r->status);
     }
 
@@ -51,10 +51,10 @@ final class HttpTest extends IntegrationTestCase
     {
         $this->inRollback(function () {
             $body = ['entity_type' => 'vendor', 'name' => 'Acme', 'department_id' => 1, 'service_description' => 'Things.'];
-            foreach (['dev.auditor', 'dev.reviewer', 'dev.infosec', 'dev.vendor'] as $u) {
+            foreach (['dev.reviewer', 'dev.vendor'] as $u) {
                 self::assertSame(403, $this->call('POST', '/api/v1/risk-entities', $u, $body)->status, $u);
             }
-            $ok = $this->call('POST', '/api/v1/risk-entities', 'dev.requestor', $body);
+            $ok = $this->call('POST', '/api/v1/risk-entities', 'dev.business_owner', $body);
             self::assertSame(201, $ok->status);
             self::assertSame('draft', self::json($ok)['status']);
         });
@@ -65,7 +65,7 @@ final class HttpTest extends IntegrationTestCase
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Fee payment processing')['id'];
             $f = self::studentApplicationFactors(false, (int) $this->entityByName('Paystack')['id']);
-            $r = $this->call('PUT', "/api/v1/risk-entities/{$id}/factors", 'dev.requestor', $f);
+            $r = $this->call('PUT', "/api/v1/risk-entities/{$id}/factors", 'dev.business_owner', $f);
             self::assertSame(422, $r->status);
             $err = self::json($r)['error'];
             self::assertSame('validation_failed', $err['code']);
@@ -77,7 +77,7 @@ final class HttpTest extends IntegrationTestCase
     {
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Fee payment processing')['id'];
-            $r = $this->call('POST', "/api/v1/risk-entities/{$id}/score", 'dev.requestor');
+            $r = $this->call('POST', "/api/v1/risk-entities/{$id}/score", 'dev.business_owner');
             self::assertSame(200, $r->status);
             $j = self::json($r);
             self::assertNotEmpty($j['inherent']['breakdown']);
@@ -91,19 +91,19 @@ final class HttpTest extends IntegrationTestCase
     {
         $paystack = (int) $this->entityByName('Paystack')['id'];
         self::assertSame(404, $this->call('GET', "/api/v1/risk-entities/{$paystack}", 'dev.vendor')->status, 'vendor cannot see other vendors');
-        self::assertSame(200, $this->call('GET', "/api/v1/risk-entities/{$paystack}", 'dev.auditor')->status);
+        self::assertSame(200, $this->call('GET', "/api/v1/risk-entities/{$paystack}", 'dev.reviewer')->status);
         $jamb = (int) $this->entityByName('JAMB (Joint Admissions and Matriculation Board)')['id'];
         self::assertSame(200, $this->call('GET', "/api/v1/risk-entities/{$jamb}", 'dev.vendor')->status, 'vendor sees its own record');
     }
 
     public function testAdminAndAuditEndpointsAreRestricted(): void
     {
-        foreach (['dev.requestor', 'dev.reviewer', 'dev.privacy_dpo', 'dev.auditor'] as $u) {
+        foreach (['dev.business_owner', 'dev.reviewer', 'dev.vendor'] as $u) {
             self::assertSame(403, $this->call('GET', '/api/v1/admin/scoring-config', $u)->status, $u);
         }
-        self::assertSame(200, $this->call('GET', '/api/v1/admin/scoring-config', 'dev.admin')->status);
-        self::assertSame(200, $this->call('GET', '/api/v1/audit-log', 'dev.auditor')->status);
-        self::assertSame(403, $this->call('GET', '/api/v1/audit-log', 'dev.privacy_dpo')->status);
+        self::assertSame(200, $this->call('GET', '/api/v1/admin/scoring-config', 'dev.dpo')->status);
+        self::assertSame(200, $this->call('GET', '/api/v1/audit-log', 'dev.dpo')->status);
+        self::assertSame(403, $this->call('GET', '/api/v1/audit-log', 'dev.reviewer')->status);
     }
 
     public function testApprovalEndpointEnforcesRouting(): void
@@ -111,9 +111,9 @@ final class HttpTest extends IntegrationTestCase
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Microsoft 365')['id'];
             $body = ['decision' => 'approved', 'justification' => 'Fine by me.'];
-            self::assertSame(403, $this->call('POST', "/api/v1/risk-entities/{$id}/approve", 'dev.requestor', $body)->status);
+            self::assertSame(403, $this->call('POST', "/api/v1/risk-entities/{$id}/approve", 'dev.business_owner', $body)->status);
             self::assertSame(403, $this->call('POST', "/api/v1/risk-entities/{$id}/approve", 'dev.reviewer', $body)->status);
-            $ok = $this->call('POST', "/api/v1/risk-entities/{$id}/approve", 'dev.privacy_dpo', $body);
+            $ok = $this->call('POST', "/api/v1/risk-entities/{$id}/approve", 'dev.dpo', $body);
             self::assertSame(200, $ok->status);
             self::assertSame('approved', self::json($ok)['outcome']);
         });
@@ -121,39 +121,39 @@ final class HttpTest extends IntegrationTestCase
 
     public function testDashboardStoriesEndpoint(): void
     {
-        $r = $this->call('GET', '/api/v1/dashboard/stories', 'dev.privacy_dpo');
+        $r = $this->call('GET', '/api/v1/dashboard/stories', 'dev.dpo');
         self::assertSame(200, $r->status);
         self::assertGreaterThanOrEqual(3, count(self::json($r)['data']));
     }
 
     public function testTrackerListsGapsNobodyOwns(): void
     {
-        $body = $this->call('GET', '/remediation', 'dev.privacy_dpo')->body;
+        $body = $this->call('GET', '/remediation', 'dev.dpo')->body;
         self::assertStringContainsString('Gaps nobody owns yet', $body);
         $section = substr($body, strpos($body, 'id="unowned"'), strpos($body, 'Assigned actions') - strpos($body, 'id="unowned"'));
         self::assertStringContainsString('Campus CCTV with facial recognition', $section, 'in progress, nothing assigned');
         self::assertStringNotContainsString('>Paystack<', $section, 'approved: its remaining gaps were accepted');
         self::assertStringNotContainsString('Alumni newsletter', $section, 'a draft has no gaps yet');
 
-        // a requestor gets the same tracker, limited to the records they own and worded for them
-        $ada = $this->call('GET', '/remediation', 'dev.requestor')->body;
+        // a business owner gets the same tracker, limited to the records they own and worded for them
+        $ada = $this->call('GET', '/remediation', 'dev.business_owner')->body;
         self::assertStringContainsString('Remediation on my records', $ada);
         self::assertStringContainsString('Campus CCTV with facial recognition', $ada);
         self::assertStringNotContainsString('Turnitin', $ada, "Tunde's record");
         self::assertStringNotContainsString('across the university', $ada);
 
-        $risks = $this->call('GET', '/risks', 'dev.privacy_dpo')->body;
+        $risks = $this->call('GET', '/risks', 'dev.dpo')->body;
         self::assertStringContainsString('11 records · 10 scored · 1 not scored yet (draft)', $risks);
     }
 
     public function testOutputIsEscapedInHtml(): void
     {
         $this->inRollback(function () {
-            $req = $this->user('dev.requestor');
+            $req = $this->user('dev.business_owner');
             $id = $this->app()->assessments()->create($req, \App\Domain\EntityType::Vendor, [
                 'name' => '<script>alert(1)</script>', 'department_id' => 1, 'service_description' => '"><img src=x onerror=alert(1)>',
             ]);
-            $_SESSION = [DevAuthProvider::SESSION_KEY => 'dev.requestor'];
+            $_SESSION = [DevAuthProvider::SESSION_KEY => 'dev.business_owner'];
             $r = (new Kernel($this->app()))->handle(new Request('GET', "/assessments/{$id}/subject", [], [], [], [], false));
             self::assertSame(200, $r->status);
             self::assertStringNotContainsString('<script>alert(1)</script>', $r->body);

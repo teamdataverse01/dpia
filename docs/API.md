@@ -50,4 +50,4 @@ Authorization is enforced server-side by `App\Services\Authorizer` for every end
 | GET `/dashboard/overview`, `/by-department`, `/remediation`, `/stories` | Dashboard | `basis=residual\|inherent`, `entity_type`, `department_id`, `from`, `to` |
 | GET / PUT `/admin/scoring-config` | Admin | PUT creates a new version; weights must total 100 |
 | GET / PUT `/admin/factor-options` | Admin | PUT `{ "options": [ { "id", "label", "help_text", "score", "sort_order" } ] }` |
-| GET `/audit-log` | Auditor / Admin, read-only | Filters: `entity_table`, `entity_id`, `actor`, `action`, `from`, `to`, `limit`, `offset` |
+| GET `/audit-log` | DPO / Administrator, read-only | Filters: `entity_table`, `entity_id`, `actor`, `action`, `from`, `to`, `limit`, `offset` |

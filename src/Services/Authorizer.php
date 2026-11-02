@@ -18,18 +18,18 @@ use App\Support\ForbiddenException;
  */
 final class Authorizer
 {
-    /** PRD section 5 matrix (role-only part). EditOwn is further limited to the user's own records. */
+    /**
+     * Who may do what (four profiles, DECISIONS D-35). EditOwn is further limited to the user's own records.
+     * Admin is the single DPO / Administrator profile and may do everything.
+     */
     private const MATRIX = [
-        'create' => [R::Requestor, R::Admin],
-        'edit_own' => [R::Requestor, R::Vendor, R::Admin],
-        'edit_controls' => [R::Vendor, R::BusinessOwner, R::InfoSec, R::PrivacyDpo, R::Reviewer, R::Admin],
-        'approve' => [R::PrivacyDpo, R::Admin], // the DPO also holds the former Risk Approver powers (DECISIONS D-33)
+        'create' => [R::BusinessOwner, R::Admin],
+        'edit_own' => [R::BusinessOwner, R::Vendor, R::Admin],
+        'edit_controls' => [R::Vendor, R::BusinessOwner, R::Reviewer, R::Admin],
+        'approve' => [R::Admin],
         'admin_config' => [R::Admin],
-        'read_all' => [R::Admin, R::Auditor],
+        'read_all' => [R::Admin],
     ];
-
-    /** Roles that work on other people's records and therefore may view them. */
-    private const OPERATIONAL_VIEWERS = [R::BusinessOwner, R::InfoSec, R::PrivacyDpo, R::Reviewer];
 
     public function can(PortalUser $user, P $permission, ?array $resource = null): bool
     {
@@ -42,12 +42,11 @@ final class Authorizer
             P::EditOwn => $this->editOwn($user, $resource),
             P::EditControls => $this->editControls($user, $resource),
             P::View => $this->view($user, $resource),
-            P::ViewDashboard => $this->hasAny($user, [R::PrivacyDpo, R::Auditor]),
-            P::ConfirmNegligible => $this->hasAny($user, [R::Reviewer, R::PrivacyDpo]),
-            P::VerifyEvidence => $this->hasAny($user, [R::Reviewer]),
-            P::SaveTemplate => $this->hasAny($user, [R::PrivacyDpo]),
+            P::ViewDashboard, P::ConfirmNegligible, P::VerifyEvidence => $this->hasAny($user, [R::Reviewer]),
+            P::SaveTemplate => false, // DPO / Administrator only (handled above)
             P::Decide => $this->decide($user, $resource),
-            P::ManageRemediation => $this->editControls($user, $resource) || $this->editOwn($user, $resource),
+            // being assigned one fix lets you work on it, not re-plan the record's remediation
+            P::ManageRemediation => $user->hasRole(R::Reviewer) || $this->inBusinessOwnerScope($user, $resource) || $this->editOwn($user, $resource),
             P::Submit => $this->editOwn($user, $resource),
         };
     }
@@ -70,32 +69,26 @@ final class Authorizer
     }
 
     /**
-     * Narrowing for list queries: null = no restriction, otherwise the user may only list rows they own
-     * (and, for department-scoped business owners, rows in their department).
+     * Narrowing for list queries. owner_only limits rows to the user's own records and the ones they have
+     * been assigned a fix on; or_department_ids adds a Business Owner's department to that.
      *
-     * @return array{owner_only: bool, department_ids: list<int>|null}
+     * @return array{owner_only: bool, or_department_ids: list<int>}
      */
     public function listScope(PortalUser $user): array
     {
-        if ($this->hasAny($user, [R::Admin, R::Auditor, R::InfoSec, R::PrivacyDpo, R::Reviewer])) {
-            return ['owner_only' => false, 'department_ids' => null];
+        if ($this->hasAny($user, [R::Admin, R::Reviewer])) {
+            return ['owner_only' => false, 'or_department_ids' => []];
         }
-        if ($user->hasRole(R::BusinessOwner)) {
-            $dept = $user->roleDepartments[R::BusinessOwner->value] ?? null;
-            return ['owner_only' => false, 'department_ids' => $dept === null ? null : [(int) $dept]];
-        }
-        return ['owner_only' => true, 'department_ids' => null];
+        $dept = $user->hasRole(R::BusinessOwner) ? ($user->roleDepartments[R::BusinessOwner->value] ?? null) : null;
+        return ['owner_only' => true, 'or_department_ids' => $dept === null ? [] : [(int) $dept]];
     }
 
     private function editOwn(PortalUser $user, ?array $resource): bool
     {
-        if (!$this->hasAny($user, [R::Requestor, R::Vendor])) {
-            return false;
-        }
         if ($resource === null) {
             return false;
         }
-        if ($user->hasRole(R::Requestor) && ($resource['owner_portal_user_id'] ?? null) === $user->id) {
+        if ($user->hasRole(R::BusinessOwner) && ($resource['owner_portal_user_id'] ?? null) === $user->id) {
             return true;
         }
         // Vendor role: only its own vendor record (PRD 5 notes).
@@ -106,27 +99,18 @@ final class Authorizer
 
     private function editControls(PortalUser $user, ?array $resource): bool
     {
-        if ($this->hasAny($user, [R::InfoSec, R::PrivacyDpo, R::Reviewer])) {
-            return true;
-        }
-        if ($user->hasRole(R::BusinessOwner) && $this->inBusinessOwnerScope($user, $resource)) {
-            return true;
-        }
-        return $user->hasRole(R::Vendor)
-            && $resource !== null
-            && ($resource['entity_type'] ?? null) === 'vendor'
-            && ($resource['vendor_portal_user_id'] ?? null) === $user->id;
+        return $user->hasRole(R::Reviewer)
+            || $this->inBusinessOwnerScope($user, $resource)
+            || $this->isAssigned($user, $resource)
+            || $this->editOwn($user, $resource);
     }
 
     private function view(PortalUser $user, ?array $resource): bool
     {
-        if ($this->hasAny($user, [R::Auditor, R::InfoSec, R::PrivacyDpo, R::Reviewer])) {
-            return true;
-        }
-        if ($user->hasRole(R::BusinessOwner) && $this->inBusinessOwnerScope($user, $resource)) {
-            return true;
-        }
-        return $this->isOwner($user, $resource);
+        return $user->hasRole(R::Reviewer)
+            || $this->inBusinessOwnerScope($user, $resource)
+            || $this->isAssigned($user, $resource)
+            || $this->isOwner($user, $resource);
     }
 
     private function decide(PortalUser $user, ?array $resource): bool
@@ -140,13 +124,23 @@ final class Authorizer
         return false;
     }
 
+    /** A Business Owner works on the records they own and, when mapped to a department, that department's records. */
     private function inBusinessOwnerScope(PortalUser $user, ?array $resource): bool
     {
-        $dept = $user->roleDepartments[R::BusinessOwner->value] ?? null;
-        if ($dept === null) {
+        if ($resource === null || !$user->hasRole(R::BusinessOwner)) {
+            return false;
+        }
+        if (($resource['owner_portal_user_id'] ?? null) === $user->id) {
             return true;
         }
-        return $resource !== null && isset($resource['department_id']) && (int) $resource['department_id'] === (int) $dept;
+        $dept = $user->roleDepartments[R::BusinessOwner->value] ?? null;
+        return $dept !== null && isset($resource['department_id']) && (int) $resource['department_id'] === (int) $dept;
+    }
+
+    /** The user has been assigned a remediation action on this record, so they must be able to open it and record the fix. */
+    private function isAssigned(PortalUser $user, ?array $resource): bool
+    {
+        return in_array($user->id, explode(',', (string) ($resource['action_owner_ids'] ?? '')), true);
     }
 
     /** @param list<R> $roles */

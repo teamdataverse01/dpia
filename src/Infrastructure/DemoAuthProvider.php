@@ -23,19 +23,14 @@ final class DemoAuthProvider implements AuthProvider
         }
     }
 
-    /** Sign-in name => portal user id (the demo data is owned by the dev.* ids). */
+    /** One sign-in per profile. A second Business Owner (Tunde) owns demo records but has no sign-in. */
     public static function usernames(): array
     {
         return [
-            'requestor' => 'dev.requestor',
-            'requestor2' => 'dev.requestor2',
-            'dpo' => 'dev.privacy_dpo',
+            'dpo' => 'dev.dpo',
             'reviewer' => 'dev.reviewer',
-            'infosec' => 'dev.infosec',
             'owner' => 'dev.business_owner',
             'vendor' => 'dev.vendor',
-            'admin' => 'dev.admin',
-            'auditor' => 'dev.auditor',
         ];
     }
 

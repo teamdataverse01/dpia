@@ -91,7 +91,7 @@ final class ControlService
     private function assertCanEdit(PortalUser $user, array $e): void
     {
         if (!$this->authz->can($user, P::EditControls, $e)) {
-            throw new ForbiddenException('Only control owners (Business Owner, Information Security, Privacy Team, Reviewer) can record controls.');
+            throw new ForbiddenException('Only the Business Owner, Reviewer or DPO can record controls on this record.');
         }
     }
 

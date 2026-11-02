@@ -12,7 +12,7 @@ final class VendorRiskRuleTest extends IntegrationTestCase
 {
     private function newDpia(): int
     {
-        return $this->app()->assessments()->create($this->user('dev.requestor'), EntityType::ProcessingActivity, [
+        return $this->app()->assessments()->create($this->user('dev.business_owner'), EntityType::ProcessingActivity, [
             'name' => 'Test activity', 'department_id' => 1, 'purpose' => 'Testing.', 'description' => 'Testing the rule.',
         ]);
     }
@@ -23,7 +23,7 @@ final class VendorRiskRuleTest extends IntegrationTestCase
             $id = $this->newDpia();
             $jamb = (int) $this->entityByName('JAMB (Joint Admissions and Matriculation Board)')['id'];
             try {
-                $this->app()->assessments()->saveFactors($this->user('dev.requestor'), $id, self::studentApplicationFactors(false, $jamb));
+                $this->app()->assessments()->saveFactors($this->user('dev.business_owner'), $id, self::studentApplicationFactors(false, $jamb));
                 self::fail('expected ValidationException');
             } catch (ValidationException $e) {
                 self::assertArrayHasKey('vendor_risk_ref', $e->fields);
@@ -60,7 +60,7 @@ final class VendorRiskRuleTest extends IntegrationTestCase
         $this->inRollback(function () {
             $id = $this->newDpia();
             $this->expectException(ValidationException::class);
-            $this->app()->assessments()->saveFactors($this->user('dev.requestor'), $id, self::studentApplicationFactors(true, null));
+            $this->app()->assessments()->saveFactors($this->user('dev.business_owner'), $id, self::studentApplicationFactors(true, null));
         });
     }
 
@@ -68,7 +68,7 @@ final class VendorRiskRuleTest extends IntegrationTestCase
     {
         $this->inRollback(function () {
             $id = $this->newDpia();
-            $r = $this->app()->assessments()->saveFactors($this->user('dev.requestor'), $id, self::studentApplicationFactors(false, null));
+            $r = $this->app()->assessments()->saveFactors($this->user('dev.business_owner'), $id, self::studentApplicationFactors(false, null));
             self::assertSame(3.83, $r->score); // PRD 8.6
             $stored = $this->app()->assessments()->storedInherent($id);
             self::assertNotContains('vendor_risk', array_column($stored['breakdown'], 'factor'));
@@ -85,7 +85,7 @@ final class VendorRiskRuleTest extends IntegrationTestCase
             $jamb = $this->entityByName('JAMB (Joint Admissions and Matriculation Board)');
             self::assertSame(62, (int) $jamb['residual_score_100']); // → factor 4
 
-            $r = $this->app()->assessments()->saveFactors($this->user('dev.requestor'), $id, self::studentApplicationFactors(true, (int) $jamb['id']));
+            $r = $this->app()->assessments()->saveFactors($this->user('dev.business_owner'), $id, self::studentApplicationFactors(true, (int) $jamb['id']));
             self::assertSame(3.85, $r->score); // PRD 8.5
             self::assertSame('high', $r->rating->value);
 
@@ -94,7 +94,7 @@ final class VendorRiskRuleTest extends IntegrationTestCase
             self::assertSame('3.85', (string) $this->app()->entities()->find($id)['inherent_score'], 'no automatic propagation (Phase 2)');
 
             // … and the DPIA reflects it the next time it is calculated.
-            $again = $this->app()->assessments()->score($this->user('dev.requestor'), $id);
+            $again = $this->app()->assessments()->score($this->user('dev.business_owner'), $id);
             self::assertSame(3.55, $again['inherent']->score); // 3.85 − 0.10 × (4 − 1)
         });
     }
@@ -102,7 +102,7 @@ final class VendorRiskRuleTest extends IntegrationTestCase
     public function testVendorAssessmentRejectsLegalBasisAndSharing(): void
     {
         $this->inRollback(function () {
-            $req = $this->user('dev.requestor');
+            $req = $this->user('dev.business_owner');
             $id = $this->app()->assessments()->create($req, EntityType::Vendor, ['name' => 'V', 'department_id' => 1, 'service_description' => 'Svc']);
             try {
                 $this->app()->assessments()->saveFactors($req, $id, self::studentApplicationFactors(false, null));

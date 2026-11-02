@@ -34,7 +34,7 @@ final class FastPathTest extends IntegrationTestCase
     {
         $this->inRollback(function () {
             $tid = $this->templateId('Admissions — JAMB data intake');
-            $id = $this->app()->templates()->startFromTemplate($this->user('dev.requestor'), $tid, 'accept', self::SUBJECT, false);
+            $id = $this->app()->templates()->startFromTemplate($this->user('dev.business_owner'), $tid, 'accept', self::SUBJECT, false);
             $e = $this->app()->entities()->find($id);
             self::assertSame('3.85', (string) $e['inherent_score']);
             self::assertSame('high', $e['inherent_rating']);
@@ -51,7 +51,7 @@ final class FastPathTest extends IntegrationTestCase
     public function testCustomiseMarksCustomisedOnlyWhenSomethingChangesAndRescores(): void
     {
         $this->inRollback(function () {
-            $req = $this->user('dev.requestor');
+            $req = $this->user('dev.business_owner');
             $tid = $this->templateId('Admissions — JAMB data intake');
             $id = $this->app()->templates()->startFromTemplate($req, $tid, 'customise', self::SUBJECT, false);
             $e = $this->app()->entities()->find($id);
@@ -79,12 +79,12 @@ final class FastPathTest extends IntegrationTestCase
             self::assertTrue($p['stale']);
             self::assertStringContainsString('12 months', $p['stale_reasons'][0]);
             try {
-                $this->app()->templates()->startFromTemplate($this->user('dev.requestor'), $tid, 'accept', self::SUBJECT, false);
+                $this->app()->templates()->startFromTemplate($this->user('dev.business_owner'), $tid, 'accept', self::SUBJECT, false);
                 self::fail('expected confirmation to be required');
             } catch (ValidationException $e) {
                 self::assertArrayHasKey('confirm_stale', $e->fields);
             }
-            $id = $this->app()->templates()->startFromTemplate($this->user('dev.requestor'), $tid, 'accept', self::SUBJECT, true);
+            $id = $this->app()->templates()->startFromTemplate($this->user('dev.business_owner'), $tid, 'accept', self::SUBJECT, true);
             self::assertSame('2.17', (string) $this->app()->entities()->find($id)['inherent_score']);
         });
     }
@@ -92,11 +92,11 @@ final class FastPathTest extends IntegrationTestCase
     public function testTemplateBecomesStaleWhenFrameworkVersionChanges(): void
     {
         $this->inRollback(function () {
-            $this->app()->admin()->saveConfig($this->user('dev.admin'), \App\Engine\ScoringConfig::defaults(), 'test');
+            $this->app()->admin()->saveConfig($this->user('dev.dpo'), \App\Engine\ScoringConfig::defaults(), 'test');
             $p = $this->app()->templates()->preview($this->templateId('Admissions — JAMB data intake'));
             self::assertTrue($p['stale']);
             self::assertStringContainsString('version 1', $p['stale_reasons'][0]);
-            $this->app()->templates()->rescoreAll($this->user('dev.admin'));
+            $this->app()->templates()->rescoreAll($this->user('dev.dpo'));
             self::assertFalse($this->app()->templates()->preview($this->templateId('Admissions — JAMB data intake'))['stale']);
         });
     }
@@ -119,18 +119,18 @@ final class FastPathTest extends IntegrationTestCase
         $this->inRollback(function () {
             $e = $this->entityByName('Student wellbeing survey'); // approved → monitoring in the seed
             try {
-                $this->app()->templates()->saveFromEntity($this->user('dev.requestor'), (int) $e['id'], 'Research — Wellbeing survey');
+                $this->app()->templates()->saveFromEntity($this->user('dev.business_owner'), (int) $e['id'], 'Research — Wellbeing survey');
                 self::fail('requestor may not save templates');
             } catch (ForbiddenException) {
             }
-            $tid = $this->app()->templates()->saveFromEntity($this->user('dev.privacy_dpo'), (int) $e['id'], 'Research — Wellbeing survey');
+            $tid = $this->app()->templates()->saveFromEntity($this->user('dev.dpo'), (int) $e['id'], 'Research — Wellbeing survey');
             $t = $this->app()->templatesRepo()->find($tid);
             self::assertSame((string) $e['inherent_score'], (string) $t['inherent_score']);
             self::assertNotEmpty($this->app()->controls()->templateControlIds($tid));
 
             $notApproved = $this->entityByName('Fee payment processing');
             $this->expectException(\App\Support\ConflictException::class);
-            $this->app()->templates()->saveFromEntity($this->user('dev.privacy_dpo'), (int) $notApproved['id'], 'X');
+            $this->app()->templates()->saveFromEntity($this->user('dev.dpo'), (int) $notApproved['id'], 'X');
         });
     }
 }

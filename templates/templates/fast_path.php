@@ -56,6 +56,6 @@
 
 <div class="card">
   <h2>No template?</h2>
-  <p>Go through the full ten-step DPIA. After it is approved, the Privacy Team can save it as a template for next time.</p>
+  <p>Go through the full ten-step DPIA. After it is approved, the DPO can save it as a template for next time.</p>
   <a class="btn btn-secondary" href="<?= e(url('/dpias/new/intake', ['name' => $q, 'department_id' => $dept])) ?>">Start the full DPIA</a>
 </div>

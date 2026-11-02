@@ -58,8 +58,8 @@ final class ScoringConfig
             'template_staleness_months' => 12,
             'template_signature_threshold' => 3,
             'approval_routing' => [
-                'high' => ['privacy_dpo'],
-                'medium' => ['privacy_dpo'],
+                'high' => ['admin'],
+                'medium' => ['admin'],
                 'low' => ['reviewer'],
                 'very_low' => ['reviewer'],
             ],

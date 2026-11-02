@@ -74,14 +74,18 @@ final class RemediationRepository
         }
         [$ew, $ep] = RiskEntityRepository::filterSql(
             array_intersect_key($f, array_flip(['entity_type', 'department_id', 'from', 'to'])),
-            $scope,
+            [],
         );
         if (($scope['owner_only'] ?? false) && isset($scope['user_id'])) {
-            // owners of the risk OR owners of the action can see it
-            $ew = array_filter($ew, fn ($c) => !str_contains($c, ':s_user'));
-            $ew[] = '(e.owner_portal_user_id = :s_user OR r.owner_portal_user_id = :s_user2)';
+            // owners of the risk, owners of the action, and a Business Owner's department can see it
+            $or = ['e.owner_portal_user_id = :s_user', 'r.owner_portal_user_id = :s_user2'];
             $ep['s_user'] = $scope['user_id'];
             $ep['s_user2'] = $scope['user_id'];
+            foreach ($scope['or_department_ids'] ?? [] as $i => $d) {
+                $or[] = "e.department_id = :s_d{$i}";
+                $ep['s_d' . $i] = (int) $d;
+            }
+            $ew[] = '(' . implode(' OR ', $or) . ')';
         }
         $w = array_merge($w, array_values($ew));
         $p += $ep;

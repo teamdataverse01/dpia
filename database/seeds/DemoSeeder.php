@@ -48,23 +48,19 @@ final class DemoSeeder
 
         // --- dev users -------------------------------------------------------------------
         $map = [
-            'dev.requestor' => [Role::Requestor, null],
-            'dev.requestor2' => [Role::Requestor, null],
-            'dev.vendor' => [Role::Vendor, null],
-            'dev.business_owner' => [Role::BusinessOwner, null],
-            'dev.infosec' => [Role::InfoSec, null],
-            'dev.privacy_dpo' => [Role::PrivacyDpo, null],
+            'dev.dpo' => [Role::Admin, null],
             'dev.reviewer' => [Role::Reviewer, null],
-            'dev.admin' => [Role::Admin, null],
-            'dev.auditor' => [Role::Auditor, null],
+            'dev.business_owner' => [Role::BusinessOwner, null],
+            'dev.business_owner2' => [Role::BusinessOwner, null],
+            'dev.vendor' => [Role::Vendor, null],
         ];
         foreach ($map as $id => [$role, $deptId]) {
             $this->app->refs()->addUserRole($id, $role, $deptId);
             [$name, $email] = DevAuthProvider::USERS[$id];
             $this->u[$id] = new PortalUser($id, $name, $email, [$role], [$role->value => $deptId]);
         }
-        $req = $this->u['dev.requestor'];   // Ada: owns the records the demo script walks through
-        $req2 = $this->u['dev.requestor2']; // Tunde: owns the rest, so each requestor sees only their own
+        $req = $this->u['dev.business_owner'];   // Bola: owns the records the demo script walks through
+        $req2 = $this->u['dev.business_owner2']; // Tunde: owns the rest, so each owner sees only their own
         $this->say('dev users and roles created');
 
         // --- vendors -----------------------------------------------------------------------
@@ -79,7 +75,7 @@ final class DemoSeeder
             'automated_decision_making' => 'human_reviews', 'cross_border_transfer' => 'none', 'third_party_transfer' => 'several_external',
             'nature_of_processing' => 'large_scale_routine', 'data_subject_type' => 'prospective_students_minors',
         ]);
-        $this->app->controlService()->startControls($this->u['dev.infosec'], $jamb);
+        $this->app->controlService()->startControls($req, $jamb);
         $this->control($jamb, 'Data Protection Policy', 'in_progress', 50, false);
 
         $paystack = $this->vendor($req, 'Paystack', $dept['Bursary / Finance'], [
@@ -92,7 +88,7 @@ final class DemoSeeder
             'automated_decision_making' => 'assists_human', 'cross_border_transfer' => 'adequate_safeguards', 'third_party_transfer' => 'one_external',
             'nature_of_processing' => 'large_scale_routine', 'data_subject_type' => 'adult_students',
         ]);
-        $this->app->controlService()->startControls($this->u['dev.infosec'], $paystack);
+        $this->app->controlService()->startControls($req, $paystack);
         $this->clear($paystack, ControlCategory::Process);
         $this->clear($paystack, ControlCategory::Technology);
         $this->decideFlow($paystack, [['dev.reviewer', 'approved', 'Process and technology controls verified; residual risk acceptable.']]);
@@ -108,7 +104,7 @@ final class DemoSeeder
             'automated_decision_making' => 'none', 'cross_border_transfer' => 'contractual_safeguards', 'third_party_transfer' => 'subprocessors_unknown',
             'nature_of_processing' => 'large_scale_routine', 'data_subject_type' => 'staff',
         ]);
-        $this->app->assessments()->calculateResidual($this->u['dev.infosec'], $m365);
+        $this->app->assessments()->calculateResidual($req, $m365);
         $this->app->approvals()->submit($req, $m365);
 
         $turnitin = $this->vendor($req2, 'Turnitin', $dept['Registry'], [
@@ -168,7 +164,7 @@ final class DemoSeeder
             'automated_decision_making' => 'none', 'cross_border_transfer' => 'none', 'third_party_transfer' => 'none',
             'nature_of_processing' => 'structured_collection', 'data_subject_type' => 'adult_students', 'legal_basis' => 'consent',
         ]);
-        $this->app->controlService()->startControls($this->u['dev.privacy_dpo'], $b);
+        $this->app->controlService()->startControls($this->u['dev.dpo'], $b);
         $this->clear($b, ControlCategory::Policy);
         $this->decideFlow($b, [['dev.reviewer', 'approved', 'Policy controls in place and verified.']]);
 
@@ -183,15 +179,16 @@ final class DemoSeeder
             'third_party_transfer' => 'one_external', 'nature_of_processing' => 'innovative_combined', 'data_subject_type' => 'staff',
             'legal_basis' => 'legitimate_interest', 'involves_data_sharing' => true, 'vendor_risk_ref' => $m365,
         ]);
-        $this->app->controlService()->startControls($this->u['dev.infosec'], $c);
+        $this->app->controlService()->startControls($req2, $c);
         $this->clear($c, ControlCategory::Policy);
         $this->control($c, 'Encryption at rest and in transit', 'in_progress', 40, false);
-        $this->app->assessments()->calculateResidual($this->u['dev.infosec'], $c);
+        $this->app->assessments()->calculateResidual($req2, $c);
         $rem = $this->app->remediation();
-        $rem->create($this->u['dev.privacy_dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Encryption at rest and in transit'), 'gap_description' => 'Enable encryption of fingerprint templates in the cloud attendance service.', 'owner_portal_user_id' => 'dev.infosec', 'priority' => 'high', 'target_date' => $this->days(-21)]);
-        $rem->create($this->u['dev.privacy_dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Role-based access control with MFA'), 'gap_description' => 'Enforce MFA for attendance-system administrators.', 'owner_portal_user_id' => 'dev.business_owner', 'priority' => 'medium', 'target_date' => $this->days(+30)]);
+        $rem->create($this->u['dev.dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Encryption at rest and in transit'), 'gap_description' => 'Enable encryption of fingerprint templates in the cloud attendance service.', 'owner_portal_user_id' => 'dev.business_owner2', 'priority' => 'high', 'target_date' => $this->days(-21)]);
+        $rem->create($this->u['dev.dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Role-based access control with MFA'), 'gap_description' => 'Enforce MFA for attendance-system administrators.', 'owner_portal_user_id' => 'dev.business_owner2', 'priority' => 'medium', 'target_date' => $this->days(+30)]);
+        $rem->create($this->u['dev.dpo'], ['risk_entity_id' => $a, 'control_id' => $this->controlId('Data Retention Schedule'), 'gap_description' => 'Add applicant records to the retention schedule.', 'owner_portal_user_id' => 'dev.business_owner', 'priority' => 'medium', 'target_date' => $this->days(+30)]);
         // This one is closed by the system: recording its control as fixed closes the action automatically.
-        $rem->create($this->u['dev.privacy_dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Privacy notice and lawful-basis record'), 'gap_description' => 'Publish staff privacy notice for biometric attendance.', 'owner_portal_user_id' => 'dev.privacy_dpo', 'priority' => 'low', 'target_date' => $this->days(+10)]);
+        $rem->create($this->u['dev.dpo'], ['risk_entity_id' => $c, 'control_id' => $this->controlId('Privacy notice and lawful-basis record'), 'gap_description' => 'Publish staff privacy notice for biometric attendance.', 'owner_portal_user_id' => 'dev.dpo', 'priority' => 'low', 'target_date' => $this->days(+10)]);
         $this->control($c, 'Privacy notice and lawful-basis record', 'implemented', 90, true);
 
         // D. Exam results — Low; negligible residual confirmed → Very Low; approved.
@@ -226,7 +223,7 @@ final class DemoSeeder
             'automated_decision_making' => 'largely_automated', 'cross_border_transfer' => 'none', 'third_party_transfer' => 'internal_affiliate',
             'nature_of_processing' => 'innovative_combined', 'data_subject_type' => 'minors_vulnerable', 'legal_basis' => 'legitimate_interest',
         ]);
-        $this->app->controlService()->startControls($this->u['dev.infosec'], $f);
+        $this->app->controlService()->startControls($req, $f);
         $this->control($f, 'Incident Response Procedure', 'implemented', 60, true);
 
         // G. Draft only.
@@ -265,6 +262,11 @@ final class DemoSeeder
         return $id;
     }
 
+    private function ownerOf(int $entityId): PortalUser
+    {
+        return $this->u[$this->app->entities()->find($entityId)['owner_portal_user_id']];
+    }
+
     private function controlId(string $title): int
     {
         foreach ($this->app->controls()->all() as $c) {
@@ -281,7 +283,7 @@ final class DemoSeeder
         $cs = $this->app->controlService();
         foreach ($cs->overview($this->app->entities()->find($entityId)) as $row) {
             if ($row['control']['title'] === $title) {
-                $cs->record($this->u['dev.infosec'], $entityId, $row['control']['id'], [
+                $cs->record($this->ownerOf($entityId), $entityId, $row['control']['id'], [
                     'status' => $status, 'effectiveness_pct' => (string) $eff, 'evidence_owner' => 'Information Security',
                     'expiry_date' => $this->days(+300),
                 ], $evidence ? $this->evidenceFile($title) : null);
@@ -300,7 +302,7 @@ final class DemoSeeder
                 continue;
             }
             $cid = $row['control']['id'];
-            $cs->record($this->u['dev.infosec'], $entityId, $cid, [
+            $cs->record($this->ownerOf($entityId), $entityId, $cid, [
                 'status' => 'implemented', 'effectiveness_pct' => '85', 'evidence_owner' => 'Control owner',
                 'expiry_date' => $this->days($category === ControlCategory::Technology ? +25 : +200),
                 'notes' => 'Demo evidence.',
@@ -321,7 +323,7 @@ final class DemoSeeder
     /** Residual → submit → decisions. */
     private function decideFlow(int $entityId, array $decisions): void
     {
-        $owner = $this->u[$this->app->entities()->find($entityId)['owner_portal_user_id']]; // the record's owner submits it
+        $owner = $this->ownerOf($entityId); // the record's owner submits it
         $this->app->assessments()->calculateResidual($owner, $entityId);
         $this->app->approvals()->submit($owner, $entityId);
         foreach ($decisions as [$userId, $decision, $why]) {
@@ -360,10 +362,10 @@ final class DemoSeeder
             'factor_snapshot' => json_encode($snapshot, JSON_THROW_ON_ERROR),
             'framework_version' => $config->version,
             'last_reviewed_at' => $reviewed,
-            'created_by' => 'dev.privacy_dpo',
+            'created_by' => 'dev.dpo',
         ]);
         $repo->setControls($id, $controlIds);
-        $this->app->audit()->record('dev.privacy_dpo', 'activity_templates', $id, 'create', null, ['activity_name' => $name, 'inherent_score' => $r->score]);
+        $this->app->audit()->record('dev.dpo', 'activity_templates', $id, 'create', null, ['activity_name' => $name, 'inherent_score' => $r->score]);
         $this->say(sprintf('template "%s": %.2f / %s', $name, $r->score, $r->rating->value));
         return $id;
     }

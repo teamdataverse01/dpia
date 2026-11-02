@@ -9,7 +9,7 @@
       <div class="choices">
         <?php foreach ($users as $u): ?>
           <label class="choice">
-            <input type="radio" name="user" value="<?= e($u['id']) ?>"<?= checked($current === $u['id'] || ($current === null && $u['id'] === 'dev.requestor')) ?>>
+            <input type="radio" name="user" value="<?= e($u['id']) ?>"<?= checked($current === $u['id'] || ($current === null && $u['id'] === 'dev.dpo')) ?>>
             <span><strong><?= e($u['name']) ?></strong>
               <span class="muted small"><?= e($u['id']) ?> · <?= e(implode(', ', array_map(fn ($r) => $r->label(), $u['roles'])) ?: 'no role mapped (run the demo seed)') ?></span></span>
           </label>

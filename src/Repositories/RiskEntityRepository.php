@@ -15,7 +15,10 @@ final class RiskEntityRepository
                vp.legal_name, vp.service_description, vp.contract_start, vp.contract_end, vp.subprocessors,
                vp.contact_name, vp.contact_email, vp.vendor_portal_user_id,
                pa.purpose, pa.description, pa.retention_period,
-               t.activity_name AS template_name
+               t.activity_name AS template_name,
+               -- STRING_AGG is PostgreSQL; on MySQL use GROUP_CONCAT
+               (SELECT STRING_AGG(DISTINCT ra.owner_portal_user_id, ',') FROM remediation_actions ra
+                 WHERE ra.risk_entity_id = e.id AND ra.status <> 'cancelled') AS action_owner_ids
           FROM risk_entities e
           LEFT JOIN departments d ON d.id = e.department_id
           LEFT JOIN vendor_profiles vp ON vp.risk_entity_id = e.id
@@ -66,7 +69,7 @@ final class RiskEntityRepository
      * @param array{entity_type?:string,department_id?:int,rating?:string,basis?:string,status?:string,owner?:string,
      *              q?:string,factor?:string,from?:string,to?:string,active_only?:bool,cleared?:string,
      *              template_id?:int,ids?:list<int>} $f
-     * @param array{owner_only:bool,department_ids:list<int>|null,user_id:string} $scope
+     * @param array{owner_only:bool,or_department_ids:list<int>,user_id:string} $scope
      * @return list<array<string,mixed>>
      */
     public function list(array $f, array $scope, int $limit = 500): array
@@ -166,17 +169,20 @@ final class RiskEntityRepository
         }
 
         if ($scope['owner_only'] ?? false) {
-            $w[] = "({$alias}.owner_portal_user_id = :s_user OR EXISTS (SELECT 1 FROM vendor_profiles svp WHERE svp.risk_entity_id = {$alias}.id AND svp.vendor_portal_user_id = :s_user2))";
+            // the user's own records, records they were assigned a fix on, and their department's (Business Owners)
+            $or = [
+                "{$alias}.owner_portal_user_id = :s_user",
+                "EXISTS (SELECT 1 FROM vendor_profiles svp WHERE svp.risk_entity_id = {$alias}.id AND svp.vendor_portal_user_id = :s_user2)",
+                "EXISTS (SELECT 1 FROM remediation_actions sra WHERE sra.risk_entity_id = {$alias}.id AND sra.status <> 'cancelled' AND sra.owner_portal_user_id = :s_user3)",
+            ];
             $p['s_user'] = $scope['user_id'];
             $p['s_user2'] = $scope['user_id'];
-        }
-        if (($scope['department_ids'] ?? null) !== null) {
-            $ph = [];
-            foreach ($scope['department_ids'] as $i => $d) {
-                $ph[] = ':s_d' . $i;
+            $p['s_user3'] = $scope['user_id'];
+            foreach ($scope['or_department_ids'] ?? [] as $i => $d) {
+                $or[] = "{$alias}.department_id = :s_d{$i}";
                 $p['s_d' . $i] = (int) $d;
             }
-            $w[] = $ph === [] ? '1 = 0' : "{$alias}.department_id IN (" . implode(', ', $ph) . ')';
+            $w[] = '(' . implode(' OR ', $or) . ')';
         }
         return [$w, $p];
     }

@@ -17,15 +17,11 @@ final class DevAuthProvider implements AuthProvider
 
     /** Dev users — one per role (PRD 13). Ids mimic CU portal ids. */
     public const USERS = [
-        'dev.requestor' => ['Ada Okafor', 'ada.okafor@dev.cu.local'],
-        'dev.requestor2' => ['Tunde Bakare', 'tunde.bakare@dev.cu.local'],
-        'dev.vendor' => ['JAMB Vendor Contact', 'contact@vendor.dev.local'],
-        'dev.business_owner' => ['Bola Adeyemi', 'bola.adeyemi@dev.cu.local'],
-        'dev.infosec' => ['Chidi Nwosu', 'chidi.nwosu@dev.cu.local'],
-        'dev.privacy_dpo' => ['Dami Ogun', 'dami.ogun@dev.cu.local'],
+        'dev.dpo' => ['Dami Ogun', 'dami.ogun@dev.cu.local'],
         'dev.reviewer' => ['Efe Ibrahim', 'efe.ibrahim@dev.cu.local'],
-        'dev.admin' => ['Gbenga Lawal', 'gbenga.lawal@dev.cu.local'],
-        'dev.auditor' => ['Halima Musa', 'halima.musa@dev.cu.local'],
+        'dev.business_owner' => ['Bola Adeyemi', 'bola.adeyemi@dev.cu.local'],
+        'dev.business_owner2' => ['Tunde Bakare', 'tunde.bakare@dev.cu.local'],
+        'dev.vendor' => ['JAMB Vendor Contact', 'contact@vendor.dev.local'],
     ];
 
     public function __construct(bool $isDev)

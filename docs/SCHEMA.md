@@ -34,7 +34,7 @@ Source of truth: `database/migrations/*.sql` (applied in order by `php bin/conso
   "review_interval_months": {"high":6,"medium":12,"low":24,"very_low":24},
   "template_staleness_months": 12,
   "template_signature_threshold": 3,
-  "approval_routing": {"high":["privacy_dpo"],"medium":["privacy_dpo"],"low":["reviewer"],"very_low":["reviewer"]}
+  "approval_routing": {"high":["admin"],"medium":["admin"],"low":["reviewer"],"very_low":["reviewer"]}
 }
 ```
 
@@ -50,5 +50,6 @@ Allowed transitions are in `App\Domain\AssessmentStatus::allowedNext()`. Every t
 
 1. Replace `BIGINT GENERATED ALWAYS AS IDENTITY` with `BIGINT AUTO_INCREMENT`.
 2. In `PdoConnection::insert()`, replace `RETURNING id` with `lastInsertId()`.
+   In `RiskEntityRepository`, replace `STRING_AGG` with `GROUP_CONCAT`.
 3. Rewrite `0002_audit_log_append_only.sql` with `SIGNAL` triggers (example in the file).
 4. In `bin/console migrate`, execute statements one at a time if the driver rejects multi-statement `exec`.

@@ -24,7 +24,7 @@ enum Permission: string
     case ViewDashboard = 'view_dashboard';      // institution-wide dashboard (11)
     case ConfirmNegligible = 'confirm_negligible'; // 9.3 Very Low confirmation
     case VerifyEvidence = 'verify_evidence';    // 9.2 verification by a Reviewer
-    case SaveTemplate = 'save_template';        // 10.3 Privacy Team/DPO or Administrator
+    case SaveTemplate = 'save_template';        // 10.3 DPO / Administrator
     case Decide = 'decide';                     // record an approval decision (16 routing)
     case ManageRemediation = 'manage_remediation';
     case Submit = 'submit';

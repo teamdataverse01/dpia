@@ -11,7 +11,7 @@ final class DashboardTest extends IntegrationTestCase
 {
     public function testPercentagesSumTo100AndCountsMatchTheList(): void
     {
-        $u = $this->user('dev.privacy_dpo');
+        $u = $this->user('dev.dpo');
         foreach (['residual', 'inherent'] as $basis) {
             foreach ([[], ['entity_type' => 'vendor'], ['entity_type' => 'processing_activity'], ['department_id' => '1']] as $q) {
                 $f = DashboardService::filters($q + ['basis' => $basis]);
@@ -35,7 +35,7 @@ final class DashboardTest extends IntegrationTestCase
 
     public function testActiveExcludesDraftsAndRejected(): void
     {
-        $o = $this->app()->dashboard()->overview($this->user('dev.privacy_dpo'), DashboardService::filters([]));
+        $o = $this->app()->dashboard()->overview($this->user('dev.dpo'), DashboardService::filters([]));
         $all = (int) $this->app()->db()->fetchValue("SELECT COUNT(*) FROM risk_entities WHERE status <> 'rejected' AND residual_rating IS NOT NULL");
         self::assertSame($all, $o['total_active']);
         self::assertSame(10, $o['total_active']); // 11 seeded, 1 unscored draft
@@ -43,7 +43,7 @@ final class DashboardTest extends IntegrationTestCase
 
     public function testOverdueIsComputedFromTargetDate(): void
     {
-        $r = $this->app()->dashboard()->remediation($this->user('dev.privacy_dpo'), DashboardService::filters([]));
+        $r = $this->app()->dashboard()->remediation($this->user('dev.dpo'), DashboardService::filters([]));
         self::assertSame(1, $r['summary']['overdue']);
         self::assertSame(1, $r['summary']['completed']);
         foreach ($r['actions'] as $a) {
@@ -57,7 +57,7 @@ final class DashboardTest extends IntegrationTestCase
 
     public function testAtLeastThreeStoriesFromRealDataEachWithALink(): void
     {
-        $stories = $this->app()->dashboard()->stories($this->user('dev.privacy_dpo'), DashboardService::filters([]));
+        $stories = $this->app()->dashboard()->stories($this->user('dev.dpo'), DashboardService::filters([]));
         self::assertGreaterThanOrEqual(3, count($stories));
         $types = array_column($stories, 'type');
         foreach (['top_factors', 'top_departments', 'control_effectiveness', 'remediation_health', 'trend'] as $t) {
@@ -71,7 +71,7 @@ final class DashboardTest extends IntegrationTestCase
 
     public function testStoryLinksLeadToTheListTheyDescribe(): void
     {
-        $u = $this->user('dev.privacy_dpo');
+        $u = $this->user('dev.dpo');
         $stories = $this->app()->dashboard()->stories($u, DashboardService::filters([]));
         $top = array_values(array_filter($stories, fn ($s) => $s['type'] === 'top_factors'))[0];
         parse_str((string) parse_url($top['link'], PHP_URL_QUERY), $q);
@@ -83,19 +83,19 @@ final class DashboardTest extends IntegrationTestCase
 
     public function testStoriesHideWhenDataDoesNotSupportThem(): void
     {
-        $none = $this->app()->dashboard()->stories($this->user('dev.privacy_dpo'), DashboardService::filters(['from' => '2030-01-01']));
+        $none = $this->app()->dashboard()->stories($this->user('dev.dpo'), DashboardService::filters(['from' => '2030-01-01']));
         self::assertSame([], $none);
     }
 
-    public function testEachRequestorSeesOnlyTheirOwnRecords(): void
+    public function testEachBusinessOwnerSeesOnlyTheirOwnRecords(): void
     {
-        $ada = $this->app()->dashboard()->overview($this->user('dev.requestor'), DashboardService::filters([]));
-        $tunde = $this->app()->dashboard()->overview($this->user('dev.requestor2'), DashboardService::filters([]));
-        $dpo = $this->app()->dashboard()->overview($this->user('dev.privacy_dpo'), DashboardService::filters([]));
-        self::assertSame(6, $ada['total_active']);
+        $bola = $this->app()->dashboard()->overview($this->user('dev.business_owner'), DashboardService::filters([]));
+        $tunde = $this->app()->dashboard()->overview($this->user('dev.business_owner2'), DashboardService::filters([]));
+        $dpo = $this->app()->dashboard()->overview($this->user('dev.dpo'), DashboardService::filters([]));
+        self::assertSame(6, $bola['total_active']);
         self::assertSame(4, $tunde['total_active']);
-        self::assertSame($dpo['total_active'], $ada['total_active'] + $tunde['total_active']);
-        self::assertFalse($this->app()->dashboard()->scope($this->user('dev.requestor'))['institution_wide']);
+        self::assertSame($dpo['total_active'], $bola['total_active'] + $tunde['total_active']);
+        self::assertFalse($this->app()->dashboard()->scope($this->user('dev.business_owner'))['institution_wide']);
     }
 
     public function testNonDashboardRolesSeeOnlyTheirOwnItems(): void

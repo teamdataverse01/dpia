@@ -66,7 +66,7 @@ $cur = fn (string $prefix) => str_starts_with($rel, $prefix) ? ' aria-current="p
     <div class="flash flash-<?= e($f['type']) ?>" role="<?= $f['type'] === 'error' ? 'alert' : 'status' ?>"><?= e($f['message']) ?></div>
   <?php endforeach; ?>
   <?php if ($user && $user->roles === []): ?>
-    <div class="flash flash-info" role="status">You are signed in to the portal but have no role in the privacy module yet. Ask an Administrator to assign one.</div>
+    <div class="flash flash-info" role="status">You are signed in to the portal but have no role in the privacy module yet. Ask the DPO / Administrator to assign one.</div>
   <?php endif; ?>
   <?= $content ?>
 </main>
