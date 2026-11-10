@@ -32,13 +32,13 @@ $cur = fn (string $prefix) => str_starts_with($rel, $prefix) ? ' aria-current="p
       <ul class="nav">
         <?php
         $isAdmin = $authz->can($user, P::AdminConfig);
-        $homeLabel = $isAdmin ? 'Dashboard' : (!empty($vendorOnly) ? 'What CU needs' : ($authz->can($user, P::ViewDashboard) ? 'My queue' : 'My work'));
+        $homeLabel = $isAdmin ? 'Dashboard' : (!empty($vendorOnly) ? 'What CU needs' : ($authz->can($user, P::VerifyEvidence) ? 'My queue' : 'My work'));
         ?>
         <li><a href="<?= e(url('/dashboard')) ?>"<?= $cur('/dashboard') ?>><?= e($homeLabel) ?></a></li>
         <?php if (!$isAdmin && $authz->can($user, P::ViewDashboard)): ?>
         <li><a href="<?= e(url('/overview')) ?>"<?= $cur('/overview') ?>>University overview</a></li>
         <?php endif; ?>
-        <?php if (empty($vendorOnly)): ?>
+        <?php if ($authz->can($user, P::BrowseRecords)): ?>
         <li><a href="<?= e(url('/risks')) ?>"<?= $cur('/risks') ?>>Risks</a></li>
         <?php if ($authz->can($user, P::Create)): ?>
         <li><a href="<?= e(url('/vendors/new')) ?>"<?= $cur('/vendors/new') ?>>New vendor assessment</a></li>

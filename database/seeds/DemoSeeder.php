@@ -50,7 +50,7 @@ final class DemoSeeder
         $map = [
             'dev.dpo' => [Role::Admin, null],
             'dev.reviewer' => [Role::Reviewer, null],
-            'dev.business_owner' => [Role::BusinessOwner, null],
+            'dev.business_owner' => [Role::BusinessOwner, $dept['Admissions']], // Bola: Admissions only
             'dev.business_owner2' => [Role::BusinessOwner, null],
             'dev.vendor' => [Role::Vendor, null],
         ];
@@ -59,8 +59,8 @@ final class DemoSeeder
             [$name, $email] = DevAuthProvider::USERS[$id];
             $this->u[$id] = new PortalUser($id, $name, $email, [$role], [$role->value => $deptId]);
         }
-        $req = $this->u['dev.business_owner'];   // Bola: owns the records the demo script walks through
-        $req2 = $this->u['dev.business_owner2']; // Tunde: owns the rest, so each owner sees only their own
+        $req = $this->u['dev.business_owner'];   // Bola: Admissions records
+        $req2 = $this->u['dev.business_owner2']; // Tunde: every other department's records
         $this->say('dev users and roles created');
 
         // --- vendors -----------------------------------------------------------------------
@@ -82,7 +82,7 @@ final class DemoSeeder
         $this->control($jamb, 'Encryption at rest and in transit', 'implemented', 80, true);
         $this->app->remediation()->create($this->u['dev.dpo'], ['risk_entity_id' => $jamb, 'control_id' => $this->controlId('Data Retention Schedule'), 'gap_description' => 'Add JAMB applicant records to the retention schedule.', 'owner_portal_user_id' => 'dev.business_owner', 'priority' => 'medium', 'target_date' => $this->days(+30)]);
 
-        $paystack = $this->vendor($req, 'Paystack', $dept['Bursary / Finance'], [
+        $paystack = $this->vendor($req2, 'Paystack', $dept['Bursary / Finance'], [
             'legal_name' => 'Paystack Payments Limited',
             'service_description' => 'Online collection of tuition and hostel fees.',
             'contract_start' => '2025-02-01', 'contract_end' => '2027-01-31',
@@ -92,12 +92,12 @@ final class DemoSeeder
             'automated_decision_making' => 'assists_human', 'cross_border_transfer' => 'adequate_safeguards', 'third_party_transfer' => 'one_external',
             'nature_of_processing' => 'large_scale_routine', 'data_subject_type' => 'adult_students',
         ]);
-        $this->app->controlService()->startControls($req, $paystack);
+        $this->app->controlService()->startControls($req2, $paystack);
         $this->clear($paystack, ControlCategory::Process);
         $this->clear($paystack, ControlCategory::Technology);
         $this->decideFlow($paystack, [['dev.reviewer', 'approved', 'Process and technology controls verified; residual risk acceptable.']]);
 
-        $m365 = $this->vendor($req, 'Microsoft 365', $dept['ICT'], [
+        $m365 = $this->vendor($req2, 'Microsoft 365', $dept['ICT'], [
             'legal_name' => 'Microsoft Nigeria Ltd',
             'service_description' => 'E-mail, document storage and collaboration for staff and students.',
             'contract_start' => '2023-09-01', 'contract_end' => $this->days(+40),
@@ -108,8 +108,8 @@ final class DemoSeeder
             'automated_decision_making' => 'none', 'cross_border_transfer' => 'contractual_safeguards', 'third_party_transfer' => 'subprocessors_unknown',
             'nature_of_processing' => 'large_scale_routine', 'data_subject_type' => 'staff',
         ]);
-        $this->app->assessments()->calculateResidual($req, $m365);
-        $this->app->approvals()->submit($req, $m365);
+        $this->app->assessments()->calculateResidual($req2, $m365);
+        $this->app->approvals()->submit($req2, $m365);
 
         $turnitin = $this->vendor($req2, 'Turnitin', $dept['Registry'], [
             'legal_name' => 'Turnitin LLC',
@@ -210,7 +210,7 @@ final class DemoSeeder
         $this->decideFlow($d, [['dev.reviewer', 'approved', 'Very low remaining risk confirmed.']]);
 
         // E. Fee payments — shares with Paystack; scored only.
-        $this->dpia($req, 'Fee payment processing', $dept['Bursary / Finance'], [
+        $this->dpia($req2, 'Fee payment processing', $dept['Bursary / Finance'], [
             'purpose' => 'Collect tuition and accommodation fees.',
             'description' => 'Students pay through the portal; the payment provider confirms transactions to Bursary.',
         ], [
@@ -221,7 +221,7 @@ final class DemoSeeder
         ]);
 
         // F. CCTV with facial recognition — High, controls in progress.
-        $f = $this->dpia($req, 'Campus CCTV with facial recognition', $dept['ICT'], [
+        $f = $this->dpia($req2, 'Campus CCTV with facial recognition', $dept['ICT'], [
             'purpose' => 'Campus security.',
             'description' => 'Cameras at gates match faces against a watch-list.',
         ], [
@@ -229,7 +229,7 @@ final class DemoSeeder
             'automated_decision_making' => 'largely_automated', 'cross_border_transfer' => 'none', 'third_party_transfer' => 'internal_affiliate',
             'nature_of_processing' => 'innovative_combined', 'data_subject_type' => 'minors_vulnerable', 'legal_basis' => 'legitimate_interest',
         ]);
-        $this->app->controlService()->startControls($req, $f);
+        $this->app->controlService()->startControls($req2, $f);
         $this->control($f, 'Incident Response Procedure', 'implemented', 60, true);
 
         // G. Draft only.

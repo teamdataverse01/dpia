@@ -5,10 +5,10 @@ $return = '/' . ltrim(substr($return, strlen(url(''))), '/');
 ?>
 <div class="page-head">
   <div>
-    <h1><?= $institutionWide ? 'Remediation tracker' : 'Remediation on my records' ?></h1>
+    <h1><?= $institutionWide ? 'Remediation tracker' : (!empty($scopeDept) ? 'Remediation in ' . e($scopeDept) : 'Remediation on my records') ?></h1>
     <p class="muted"><?= $institutionWide
         ? 'Every fix still outstanding across the university, and who owns it. Owners record their fixes; an action closes by itself once its control is fixed and verified. Use this page to spot overdue work and chase it.'
-        : 'The fixes on the records you own, and any actions assigned to you. Assign each open gap to the person who will fix it; an action closes by itself once its control is fixed and verified. The DPO and Reviewers see this for the whole university.' ?></p>
+        : (!empty($scopeDept) ? 'The fixes on ' . e($scopeDept) . ' records.' : 'The fixes on the records you own, and any actions assigned to you.') . ' Assign each open gap to the person who will fix it; an action closes by itself once its control is fixed and verified. The DPO sees this for the whole university.' ?></p>
   </div>
 </div>
 <div class="tiles">
@@ -42,7 +42,7 @@ $return = '/' . ltrim(substr($return, strlen(url(''))), '/');
 
 <?php if (!isset($filters['owner'])): ?>
 <section class="card" id="unowned" aria-labelledby="unowned-h">
-  <h2 id="unowned-h"><?= $institutionWide ? 'Gaps nobody owns yet' : 'Gaps on your records that nobody owns yet' ?></h2>
+  <h2 id="unowned-h"><?= $institutionWide ? 'Gaps nobody owns yet' : (!empty($scopeDept) ? 'Gaps in ' . e($scopeDept) . ' that nobody owns yet' : 'Gaps on your records that nobody owns yet') ?></h2>
   <p class="muted small">Recommended safeguards that are not in place and that nobody has been assigned to fix. A <strong>mandatory</strong> gap stops its control type (Policy, Process or Technology) from being cleared, so it keeps the residual risk from coming down; optional gaps help but never block it. Only records still being assessed (or due for review soon) are listed — approved records have had their remaining gaps accepted.</p>
   <?php if ($unowned === []): ?>
     <p class="note">Every open gap has an owner.</p>

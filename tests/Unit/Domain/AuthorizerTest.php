@@ -89,10 +89,11 @@ final class AuthorizerTest extends TestCase
         foreach ([P::View, P::EditControls, P::ManageRemediation] as $p) {
             self::assertTrue($this->auth->can($r, $p, self::othersRecord()), $p->value);
         }
-        foreach ([P::ViewDashboard, P::ConfirmNegligible, P::VerifyEvidence] as $p) {
+        foreach ([P::ConfirmNegligible, P::VerifyEvidence] as $p) {
             self::assertTrue($this->auth->can($r, $p), $p->value);
         }
-        foreach ([P::Create, P::Approve, P::AdminConfig, P::ReadAll, P::SaveTemplate] as $p) {
+        // works from the review queue only: no university board, risk list or remediation tracker (D-37)
+        foreach ([P::ViewDashboard, P::BrowseRecords, P::Create, P::Approve, P::AdminConfig, P::ReadAll, P::SaveTemplate] as $p) {
             self::assertFalse($this->auth->can($r, $p), $p->value);
         }
         self::assertFalse($this->auth->can($r, P::EditOwn, self::othersRecord()));
@@ -107,14 +108,16 @@ final class AuthorizerTest extends TestCase
         }
     }
 
-    public function testOnlyTheDpoAndReviewerSeeTheWholeUniversity(): void
+    public function testOnlyTheDpoSeesTheWholeUniversity(): void
     {
-        foreach ([R::Admin, R::Reviewer] as $r) {
-            self::assertTrue($this->auth->can(self::user($r), P::ViewDashboard), $r->value);
-            self::assertFalse($this->auth->listScope(self::user($r))['owner_only'], $r->value);
-        }
-        foreach ([R::BusinessOwner, R::Vendor] as $r) {
+        self::assertTrue($this->auth->can(self::user(R::Admin), P::ViewDashboard));
+        foreach ([R::Reviewer, R::BusinessOwner, R::Vendor] as $r) {
             self::assertFalse($this->auth->can(self::user($r), P::ViewDashboard), $r->value);
+        }
+        self::assertTrue($this->auth->can(self::user(R::BusinessOwner), P::BrowseRecords));
+        self::assertFalse($this->auth->can(self::user(R::Vendor), P::BrowseRecords));
+        // an owner with no department and a vendor fall back to their own records
+        foreach ([R::BusinessOwner, R::Vendor] as $r) {
             self::assertTrue($this->auth->listScope(self::user($r))['owner_only'], $r->value);
         }
     }
@@ -133,7 +136,9 @@ final class AuthorizerTest extends TestCase
         $bo = new PortalUser('bo', 'BO', null, [R::BusinessOwner], ['business_owner' => 2]);
         self::assertFalse($this->auth->can($bo, P::EditControls, self::othersRecord()));
         self::assertTrue($this->auth->can($bo, P::EditControls, ['department_id' => 2] + self::othersRecord()));
-        self::assertSame([2], $this->auth->listScope($bo)['or_department_ids']);
+        // lists show that department only (D-37)
+        self::assertSame(['owner_only' => false, 'department_ids' => [2]], $this->auth->listScope($bo));
+        self::assertSame(2, $this->auth->departmentOf($bo));
     }
 
     public function testBeingAssignedAFixGivesAccessToThatRecordOnly(): void

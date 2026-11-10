@@ -28,4 +28,5 @@ enum Permission: string
     case Decide = 'decide';                     // record an approval decision (16 routing)
     case ManageRemediation = 'manage_remediation';
     case Submit = 'submit';
+    case BrowseRecords = 'browse_records'; // the Risks list and Remediation tracker (DECISIONS D-37)
 }

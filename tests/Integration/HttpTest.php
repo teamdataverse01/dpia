@@ -65,7 +65,7 @@ final class HttpTest extends IntegrationTestCase
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Fee payment processing')['id'];
             $f = self::studentApplicationFactors(false, (int) $this->entityByName('Paystack')['id']);
-            $r = $this->call('PUT', "/api/v1/risk-entities/{$id}/factors", 'dev.business_owner', $f);
+            $r = $this->call('PUT', "/api/v1/risk-entities/{$id}/factors", 'dev.business_owner2', $f);
             self::assertSame(422, $r->status);
             $err = self::json($r)['error'];
             self::assertSame('validation_failed', $err['code']);
@@ -77,7 +77,7 @@ final class HttpTest extends IntegrationTestCase
     {
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Fee payment processing')['id'];
-            $r = $this->call('POST', "/api/v1/risk-entities/{$id}/score", 'dev.business_owner');
+            $r = $this->call('POST', "/api/v1/risk-entities/{$id}/score", 'dev.business_owner2');
             self::assertSame(200, $r->status);
             $j = self::json($r);
             self::assertNotEmpty($j['inherent']['breakdown']);
@@ -111,7 +111,7 @@ final class HttpTest extends IntegrationTestCase
         $this->inRollback(function () {
             $id = (int) $this->entityByName('Microsoft 365')['id'];
             $body = ['decision' => 'approved', 'justification' => 'Fine by me.'];
-            self::assertSame(403, $this->call('POST', "/api/v1/risk-entities/{$id}/approve", 'dev.business_owner', $body)->status);
+            self::assertSame(403, $this->call('POST', "/api/v1/risk-entities/{$id}/approve", 'dev.business_owner2', $body)->status); // the owner
             self::assertSame(403, $this->call('POST', "/api/v1/risk-entities/{$id}/approve", 'dev.reviewer', $body)->status);
             $ok = $this->call('POST', "/api/v1/risk-entities/{$id}/approve", 'dev.dpo', $body);
             self::assertSame(200, $ok->status);
@@ -135,12 +135,25 @@ final class HttpTest extends IntegrationTestCase
         self::assertStringNotContainsString('>Paystack<', $section, 'approved: its remaining gaps were accepted');
         self::assertStringNotContainsString('Alumni newsletter', $section, 'a draft has no gaps yet');
 
-        // a business owner gets the same tracker, limited to the records they own and worded for them
-        $ada = $this->call('GET', '/remediation', 'dev.business_owner')->body;
-        self::assertStringContainsString('Remediation on my records', $ada);
-        self::assertStringContainsString('Campus CCTV with facial recognition', $ada);
-        self::assertStringNotContainsString('Turnitin', $ada, "Tunde's record");
-        self::assertStringNotContainsString('across the university', $ada);
+        // a CU Activity Owner gets the same tracker, limited to their department (D-37)
+        $bola = $this->call('GET', '/remediation', 'dev.business_owner')->body;
+        self::assertStringContainsString('Remediation in Admissions', $bola);
+        self::assertStringContainsString('JAMB', $bola);
+        self::assertStringNotContainsString('Campus CCTV', $bola, 'ICT');
+        self::assertStringNotContainsString('across the university', $bola);
+        $bolaRisks = $this->call('GET', '/risks', 'dev.business_owner')->body;
+        self::assertStringContainsString('Risks in Admissions', $bolaRisks);
+        self::assertStringContainsString('Processing Student Applications', $bolaRisks);
+        foreach (['Microsoft 365', 'Fee payment processing', 'Turnitin'] as $other) {
+            self::assertStringNotContainsString($other, $bolaRisks, $other);
+        }
+
+        // a Reviewer works from the queue only
+        foreach (['/risks', '/remediation', '/overview'] as $page) {
+            self::assertSame(403, $this->call('GET', $page, 'dev.reviewer')->status, $page);
+        }
+        self::assertSame(403, $this->call('GET', '/api/v1/risk-entities', 'dev.reviewer')->status);
+        self::assertStringNotContainsString('>Risks<', $this->call('GET', '/dashboard', 'dev.reviewer')->body);
 
         $risks = $this->call('GET', '/risks', 'dev.dpo')->body;
         self::assertStringContainsString('11 records · 10 scored · 1 not scored yet (draft)', $risks);
@@ -158,7 +171,7 @@ final class HttpTest extends IntegrationTestCase
         self::assertStringContainsString('Processing Student Applications', $reviewer, 'Low risk: the Reviewer decides');
         self::assertStringNotContainsString('Microsoft 365', $reviewer);
         self::assertStringContainsString('Data Processing Agreement', $reviewer, 'evidence waiting to be checked');
-        self::assertSame(200, $this->call('GET', '/overview', 'dev.reviewer')->status);
+        self::assertSame(403, $this->call('GET', '/overview', 'dev.reviewer')->status);
 
         $owner = $this->call('GET', '/dashboard', 'dev.business_owner')->body;
         self::assertStringContainsString('<h1>My work</h1>', $owner);
@@ -190,11 +203,19 @@ final class HttpTest extends IntegrationTestCase
 
     public function testMonitoringDoesNotLinkToRecordsTheUserCannotOpen(): void
     {
-        $m365 = (int) $this->entityByName('Microsoft 365')['id'];
-        $biometric = (int) $this->entityByName('Staff biometric attendance')['id']; // Tunde's, uses Bola's vendor
-        $body = $this->call('GET', "/assessments/{$m365}/monitoring", 'dev.business_owner')->body;
-        self::assertStringNotContainsString('/assessments/' . $biometric . '"', $body);
-        self::assertStringContainsString('/assessments/' . $biometric . '"', $this->call('GET', "/assessments/{$m365}/monitoring", 'dev.dpo')->body);
+        $this->inRollback(function () {
+            // a DPIA in another department (Tunde's) that shares data with Bola's vendor, JAMB
+            $jamb = (int) $this->entityByName('JAMB (Joint Admissions and Matriculation Board)')['id'];
+            $tunde = $this->user('dev.business_owner2');
+            $other = $this->app()->assessments()->create($tunde, \App\Domain\EntityType::ProcessingActivity, [
+                'name' => 'Registry data sharing with JAMB', 'department_id' => (int) $this->app()->db()->fetchValue("SELECT id FROM departments WHERE name = 'Registry'"),
+                'purpose' => 'Testing.', 'description' => 'Testing.',
+            ]);
+            $this->app()->assessments()->saveFactors($tunde, $other, self::studentApplicationFactors(true, $jamb));
+            $body = $this->call('GET', "/assessments/{$jamb}/monitoring", 'dev.business_owner')->body;
+            self::assertStringNotContainsString('/assessments/' . $other . '"', $body);
+            self::assertStringContainsString('/assessments/' . $other . '"', $this->call('GET', "/assessments/{$jamb}/monitoring", 'dev.dpo')->body);
+        });
     }
 
     public function testOutputIsEscapedInHtml(): void

@@ -62,6 +62,7 @@ final class DashboardController extends BaseController
 
     public function risks(Request $request, PortalUser $user): Response
     {
+        $this->app->authz()->authorize($user, Permission::BrowseRecords);
         $f = DashboardService::filters($request->query);
         foreach (['rating', 'status', 'factor', 'cleared', 'q'] as $k) {
             $v = trim((string) $request->query($k, ''));
@@ -83,13 +84,15 @@ final class DashboardController extends BaseController
             'title' => 'Risks',
             'filters' => $f,
             'rows' => $this->app->entities()->list($f, $scope),
-            'departments' => $this->app->refs()->departments(),
+            'scopeDept' => $this->scopeDepartmentName($user),
+            'departments' => $this->departmentsFor($user),
             'statuses' => AssessmentStatus::cases(),
         ]);
     }
 
     public function remediation(Request $request, PortalUser $user): Response
     {
+        $this->app->authz()->authorize($user, Permission::BrowseRecords);
         $f = [];
         foreach (['status', 'department_id', 'entity_type', 'priority'] as $k) {
             $v = trim((string) $request->query($k, ''));
@@ -104,6 +107,7 @@ final class DashboardController extends BaseController
         return $this->render('dashboard/remediation', [
             'title' => 'Remediation tracker',
             'institutionWide' => $this->app->dashboard()->scope($user)['institution_wide'],
+            'scopeDept' => $this->scopeDepartmentName($user),
             'filters' => $f,
             'summary' => \App\Services\RemediationService::summary($all),
             'rows' => array_map(
@@ -118,7 +122,7 @@ final class DashboardController extends BaseController
                 $this->app->remediation()->list($user, $f),
             ),
             'people' => $this->app->people()->all(),
-            'departments' => $this->app->refs()->departments(),
+            'departments' => $this->departmentsFor($user),
             // hidden when looking at "only my actions": that view is about the user's own to-do list
             'unowned' => isset($f['owner']) ? [] : $this->unownedGaps($user, $f, $all),
         ]);
@@ -188,6 +192,21 @@ final class DashboardController extends BaseController
         $this->flash($sent ? 'success' : 'error', $sent ? "Reminder sent to {$name}." : "{$name} has no e-mail address on file, so no reminder could be sent.");
         $back = (string) $request->input('return', '/remediation');
         return Response::redirect(url(str_starts_with($back, '/') && !str_starts_with($back, '//') ? $back : '/remediation'));
+    }
+
+    /** Name of the department a CU Activity Owner's lists are limited to, or null. */
+    private function scopeDepartmentName(PortalUser $user): ?string
+    {
+        $id = $this->app->authz()->departmentOf($user);
+        return $id === null ? null : ($this->app->refs()->department($id)['name'] ?? null);
+    }
+
+    /** The department filter only offers what the user may see. */
+    private function departmentsFor(PortalUser $user): array
+    {
+        $id = $this->app->authz()->departmentOf($user);
+        $all = $this->app->refs()->departments();
+        return $id === null ? $all : array_values(array_filter($all, fn ($d) => $d['id'] === $id));
     }
 
     public function help(Request $request, PortalUser $user): Response

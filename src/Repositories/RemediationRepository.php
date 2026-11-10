@@ -77,15 +77,19 @@ final class RemediationRepository
             [],
         );
         if (($scope['owner_only'] ?? false) && isset($scope['user_id'])) {
-            // owners of the risk, owners of the action, and a Business Owner's department can see it
-            $or = ['e.owner_portal_user_id = :s_user', 'r.owner_portal_user_id = :s_user2'];
+            // owners of the risk and owners of the action can see it
+            $ew[] = '(e.owner_portal_user_id = :s_user OR r.owner_portal_user_id = :s_user2)';
             $ep['s_user'] = $scope['user_id'];
             $ep['s_user2'] = $scope['user_id'];
-            foreach ($scope['or_department_ids'] ?? [] as $i => $d) {
-                $or[] = "e.department_id = :s_d{$i}";
+        }
+        if (($scope['department_ids'] ?? null) !== null) {
+            // a CU Activity Owner's department only
+            $ph = [];
+            foreach ($scope['department_ids'] as $i => $d) {
+                $ph[] = ':s_d' . $i;
                 $ep['s_d' . $i] = (int) $d;
             }
-            $ew[] = '(' . implode(' OR ', $or) . ')';
+            $ew[] = $ph === [] ? '1 = 0' : 'e.department_id IN (' . implode(', ', $ph) . ')';
         }
         $w = array_merge($w, array_values($ew));
         $p += $ep;

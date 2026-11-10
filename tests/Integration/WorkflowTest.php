@@ -47,8 +47,8 @@ final class WorkflowTest extends IntegrationTestCase
         $this->inRollback(function () {
             $cctv = $this->entityByName('Campus CCTV with facial recognition'); // High, controls in progress
             $id = (int) $cctv['id'];
-            $this->app()->assessments()->calculateResidual($this->user('dev.business_owner'), $id);
-            $this->app()->approvals()->submit($this->user('dev.business_owner'), $id);
+            $this->app()->assessments()->calculateResidual($this->user('dev.business_owner2'), $id);
+            $this->app()->approvals()->submit($this->user('dev.business_owner2'), $id);
             self::assertSame([Role::Admin], $this->app()->approvals()->round($this->app()->entities()->find($id))['required']);
 
             try {
@@ -169,7 +169,7 @@ final class WorkflowTest extends IntegrationTestCase
             $this->app()->approvals()->decide($this->user('dev.dpo'), $id, 'rejected', 'Need a DPA first.', null);
             self::assertSame('rejected', $this->app()->entities()->find($id)['status']);
             $f = $this->app()->entities()->factorInputs($id);
-            $this->app()->assessments()->saveFactors($this->user('dev.business_owner'), $id, $f);
+            $this->app()->assessments()->saveFactors($this->user('dev.business_owner2'), $id, $f);
             self::assertSame('scored', $this->app()->entities()->find($id)['status']);
         });
     }
@@ -178,7 +178,7 @@ final class WorkflowTest extends IntegrationTestCase
     {
         $id = (int) $this->entityByName('Microsoft 365')['id'];
         $this->expectException(ConflictException::class);
-        $this->app()->assessments()->saveFactors($this->user('dev.business_owner'), $id, $this->app()->entities()->factorInputs($id));
+        $this->app()->assessments()->saveFactors($this->user('dev.business_owner2'), $id, $this->app()->entities()->factorInputs($id));
     }
 
     public function testVeryLowOnlyFromComputedLow(): void
@@ -260,7 +260,7 @@ final class WorkflowTest extends IntegrationTestCase
 
             $id = (int) $this->entityByName('Fee payment processing')['id'];
             self::assertSame(1, (int) $this->app()->entities()->find($id)['scoring_framework_version'], 'keeps its version until rescored');
-            $this->app()->assessments()->score($this->user('dev.business_owner'), $id);
+            $this->app()->assessments()->score($this->user('dev.business_owner2'), $id);
             self::assertSame(2, (int) $this->app()->entities()->find($id)['scoring_framework_version']);
         });
     }
@@ -274,7 +274,7 @@ final class WorkflowTest extends IntegrationTestCase
             file_put_contents($tmp, '<?php echo "x";');
             foreach (['shell.php' => 'File type not allowed.', 'fake.pdf' => 'File content does not match its type.'] as $name => $msg) {
                 try {
-                    $this->app()->controlService()->record($this->user('dev.business_owner'), (int) $e['id'], $cid, [], ['tmp_name' => $tmp, 'name' => $name, 'error' => 0]);
+                    $this->app()->controlService()->record($this->user('dev.business_owner2'), (int) $e['id'], $cid, [], ['tmp_name' => $tmp, 'name' => $name, 'error' => 0]);
                     self::fail("{$name} must be rejected");
                 } catch (ValidationException $ex) {
                     self::assertSame($msg, $ex->fields['evidence']);

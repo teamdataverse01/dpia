@@ -4,7 +4,6 @@
     <h1>My review queue</h1>
     <p class="muted">Check the evidence people have uploaded, and approve Low-risk assessments. Medium and High risks go to the DPO.</p>
   </div>
-  <a class="btn btn-secondary" href="<?= e(url('/overview')) ?>">University overview</a>
 </div>
 <div class="tiles">
   <a class="tile<?= $evidence ? ' tile-alert' : '' ?>" href="#evidence"><div class="n"><?= count($evidence) ?></div><div class="lbl">Evidence to verify</div></a>

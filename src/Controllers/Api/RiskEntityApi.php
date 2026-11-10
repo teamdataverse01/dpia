@@ -71,6 +71,7 @@ final class RiskEntityApi
 
     public function list(Request $request, PortalUser $user): Response
     {
+        $this->app->authz()->authorize($user, \App\Domain\Permission::BrowseRecords);
         $f = [];
         $map = ['type' => 'entity_type', 'entity_type' => 'entity_type', 'department' => 'department_id', 'department_id' => 'department_id', 'rating' => 'rating', 'status' => 'status', 'owner' => 'owner', 'basis' => 'basis', 'q' => 'q'];
         foreach ($map as $in => $key) {
@@ -261,6 +262,7 @@ final class RiskEntityApi
 
     public function listActions(Request $request, PortalUser $user): Response
     {
+        $this->app->authz()->authorize($user, \App\Domain\Permission::BrowseRecords);
         $f = array_filter(array_intersect_key($request->query, array_flip(['risk_entity_id', 'status', 'department_id', 'entity_type', 'owner', 'priority'])), fn ($v) => $v !== '');
         $rows = $this->app->remediation()->list($user, $f);
         return Response::json(['data' => $rows, 'summary' => \App\Services\RemediationService::summary($rows)]);

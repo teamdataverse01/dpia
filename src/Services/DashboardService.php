@@ -47,7 +47,7 @@ final class DashboardService
     public function scope(PortalUser $user): array
     {
         if ($this->authz->can($user, P::ViewDashboard)) {
-            return ['owner_only' => false, 'or_department_ids' => [], 'user_id' => $user->id, 'institution_wide' => true];
+            return ['owner_only' => false, 'department_ids' => null, 'user_id' => $user->id, 'institution_wide' => true];
         }
         return $this->authz->listScope($user) + ['user_id' => $user->id, 'institution_wide' => false];
     }

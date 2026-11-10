@@ -87,13 +87,14 @@ final class DashboardTest extends IntegrationTestCase
         self::assertSame([], $none);
     }
 
-    public function testEachBusinessOwnerSeesOnlyTheirOwnRecords(): void
+    public function testOwnersSeeTheirDepartmentOrTheirOwnRecords(): void
     {
+        // Bola is tied to Admissions, so sees its 2 records; Tunde has no department, so sees the 8 he owns
         $bola = $this->app()->dashboard()->overview($this->user('dev.business_owner'), DashboardService::filters([]));
         $tunde = $this->app()->dashboard()->overview($this->user('dev.business_owner2'), DashboardService::filters([]));
         $dpo = $this->app()->dashboard()->overview($this->user('dev.dpo'), DashboardService::filters([]));
-        self::assertSame(6, $bola['total_active']);
-        self::assertSame(4, $tunde['total_active']);
+        self::assertSame(2, $bola['total_active']);
+        self::assertSame(8, $tunde['total_active']);
         self::assertSame($dpo['total_active'], $bola['total_active'] + $tunde['total_active']);
         self::assertFalse($this->app()->dashboard()->scope($this->user('dev.business_owner'))['institution_wide']);
     }

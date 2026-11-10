@@ -71,7 +71,7 @@ final class HomeService
     public function vendorRequests(PortalUser $user): array
     {
         $out = [];
-        $rows = $this->entities->list(['entity_type' => 'vendor'], ['owner_only' => true, 'or_department_ids' => [], 'user_id' => $user->id]);
+        $rows = $this->entities->list(['entity_type' => 'vendor'], ['owner_only' => true, 'department_ids' => null, 'user_id' => $user->id]);
         foreach ($rows as $e) {
             if ($e['vendor_portal_user_id'] !== $user->id) {
                 continue;

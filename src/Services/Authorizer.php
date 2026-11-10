@@ -42,7 +42,10 @@ final class Authorizer
             P::EditOwn => $this->editOwn($user, $resource),
             P::EditControls => $this->editControls($user, $resource),
             P::View => $this->view($user, $resource),
-            P::ViewDashboard, P::ConfirmNegligible, P::VerifyEvidence => $this->hasAny($user, [R::Reviewer]),
+            P::ViewDashboard => false, // the university-wide board is the DPO's (handled above)
+            P::ConfirmNegligible, P::VerifyEvidence => $this->hasAny($user, [R::Reviewer]),
+            // a Reviewer works from their queue only; a CU Activity Owner browses their department
+            P::BrowseRecords => $this->hasAny($user, [R::BusinessOwner]),
             P::SaveTemplate => false, // DPO / Administrator only (handled above)
             P::Decide => $this->decide($user, $resource),
             // being assigned one fix lets you work on it, not re-plan the record's remediation
@@ -69,18 +72,33 @@ final class Authorizer
     }
 
     /**
-     * Narrowing for list queries. owner_only limits rows to the user's own records and the ones they have
-     * been assigned a fix on; or_department_ids adds a Business Owner's department to that.
+     * Narrowing for list queries (DECISIONS D-37):
+     *  - DPO / Administrator and Reviewer: no narrowing (a Reviewer has no list pages, only their queue);
+     *  - CU Activity Owner tied to a department: that department's records only;
+     *  - anyone else (an owner with no department, a vendor): their own records and ones they were assigned a fix on.
      *
-     * @return array{owner_only: bool, or_department_ids: list<int>}
+     * @return array{owner_only: bool, department_ids: list<int>|null}
      */
     public function listScope(PortalUser $user): array
     {
         if ($this->hasAny($user, [R::Admin, R::Reviewer])) {
-            return ['owner_only' => false, 'or_department_ids' => []];
+            return ['owner_only' => false, 'department_ids' => null];
         }
         $dept = $user->hasRole(R::BusinessOwner) ? ($user->roleDepartments[R::BusinessOwner->value] ?? null) : null;
-        return ['owner_only' => true, 'or_department_ids' => $dept === null ? [] : [(int) $dept]];
+        if ($dept !== null) {
+            return ['owner_only' => false, 'department_ids' => [(int) $dept]];
+        }
+        return ['owner_only' => true, 'department_ids' => null];
+    }
+
+    /** The department a CU Activity Owner's lists are limited to, if any. */
+    public function departmentOf(PortalUser $user): ?int
+    {
+        if ($user->hasRole(R::Admin) || !$user->hasRole(R::BusinessOwner)) {
+            return null;
+        }
+        $dept = $user->roleDepartments[R::BusinessOwner->value] ?? null;
+        return $dept === null ? null : (int) $dept;
     }
 
     private function editOwn(PortalUser $user, ?array $resource): bool

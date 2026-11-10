@@ -19,21 +19,25 @@ final class DashboardApi
 
     public function overview(Request $request, PortalUser $user): Response
     {
+        $this->app->authz()->authorize($user, \App\Domain\Permission::BrowseRecords);
         return Response::json($this->app->dashboard()->overview($user, DashboardService::filters($request->query)));
     }
 
     public function byDepartment(Request $request, PortalUser $user): Response
     {
+        $this->app->authz()->authorize($user, \App\Domain\Permission::BrowseRecords);
         return Response::json($this->app->dashboard()->byDepartment($user, DashboardService::filters($request->query)));
     }
 
     public function remediation(Request $request, PortalUser $user): Response
     {
+        $this->app->authz()->authorize($user, \App\Domain\Permission::BrowseRecords);
         return Response::json($this->app->dashboard()->remediation($user, DashboardService::filters($request->query)));
     }
 
     public function stories(Request $request, PortalUser $user): Response
     {
+        $this->app->authz()->authorize($user, \App\Domain\Permission::BrowseRecords);
         $stories = $this->app->dashboard()->stories($user, DashboardService::filters($request->query));
         foreach ($stories as &$s) {
             $s['link'] = url($s['link']);
